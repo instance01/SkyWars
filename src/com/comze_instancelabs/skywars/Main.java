@@ -129,8 +129,7 @@ public class Main extends JavaPlugin implements Listener {
 		getConfig().addDefault("config.game_on_join", false);
 
 		getConfig().addDefault("config.kits.default.name", "default");
-		getConfig().addDefault("config.kits.default.potioneffect", "SPEED");
-		getConfig().addDefault("config.kits.default.amplifier", 1);
+		getConfig().addDefault("config.kits.default.items", "276#1");
 		getConfig().addDefault("config.kits.default.lore", "The default class.");
 
 		getConfig().addDefault("strings.saved.arena", "&aSuccessfully saved arena.");
@@ -1334,7 +1333,7 @@ public class Main extends JavaPlugin implements Listener {
 		getServer().getPlayer(player).getInventory().clear();
 		getServer().getPlayer(player).getInventory().setArmorContents(null);
 		getServer().getPlayer(player).updateInventory();
-		getServer().getPlayer(player).addPotionEffect(c.potioneffect);
+		getServer().getPlayer(player).getInventory().setContents(c.getItems());
 		getServer().getPlayer(player).updateInventory();
 	}
 	
@@ -1345,9 +1344,9 @@ public class Main extends JavaPlugin implements Listener {
 	public void loadClasses(){
 		if(getConfig().isSet("config.kits")){
 			for(String aclass : getConfig().getConfigurationSection("config.kits.").getKeys(false)){
-				AClass n = new AClass(this, aclass, new PotionEffect(PotionEffectType.getByName(getConfig().getString("config.kits." + aclass + ".potioneffect")), 20 * 64, getConfig().getInt("config.kits." + aclass + ".amplifier")));
+				AClass n = new AClass(this, aclass, parseItems(getConfig().getString("config.kits." + aclass + ".items")));
 				aclasses.put(aclass, n);
-				if(!getConfig().isSet("config.kits." + aclass + ".potioneffect") || !getConfig().isSet("config.kits." + aclass + ".lore")){
+				if(!getConfig().isSet("config.kits." + aclass + ".items") || !getConfig().isSet("config.kits." + aclass + ".lore")){
 					getLogger().warning("One of the classes found in the config file is invalid: " + aclass + ". Missing itemid or lore!");
 				}
 			}
@@ -1705,5 +1704,25 @@ public class Main extends JavaPlugin implements Listener {
 		}
 	}
 
+
+	
+	// example items: 267#1;3#64;3#64
+	@SuppressWarnings("unused")
+	public ArrayList<ItemStack> parseItems(String rawitems){
+		ArrayList<ItemStack> ret = new ArrayList<ItemStack>();
+		
+		String[] a = rawitems.split(";");
+		for(String b : a){
+			String[] c = b.split("#");
+			String itemid = c[0];
+			String itemamount = c[1];
+			ItemStack nitem = new ItemStack(Integer.parseInt(itemid), Integer.parseInt(itemamount));
+			ret.add(nitem);
+		}
+		if(ret == null){
+			getLogger().severe("Found invalid class in config!");
+		}
+		return ret;
+	}
 	
 }

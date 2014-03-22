@@ -6,6 +6,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.Chest;
+import org.bukkit.inventory.ItemStack;
  
 public class ArenaBlock implements Serializable
 {
@@ -15,8 +17,9 @@ public class ArenaBlock implements Serializable
     public String world;
     public Material m;
     public byte data;
+    public ItemStack[] inv;
  
-    public ArenaBlock(Block b)
+    public ArenaBlock(Block b, boolean c)
     {
     	m = b.getType();
         x = b.getX();
@@ -24,6 +27,9 @@ public class ArenaBlock implements Serializable
         z = b.getZ();
         data = b.getData();
         world = b.getWorld().getName();
+        if(c){
+        	inv = ((Chest) b.getState()).getInventory().getContents();
+        }
     }
  
     public Block getBlock()
@@ -41,6 +47,10 @@ public class ArenaBlock implements Serializable
     
     public Byte getData(){
     	return data;
+    }
+    
+    public ItemStack[] getInventory(){
+    	return inv;
     }
  
 }

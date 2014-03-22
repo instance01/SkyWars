@@ -547,7 +547,7 @@ public class Main extends JavaPlugin implements Listener {
 					sender.sendMessage("§2/sw createarena [name]");
 					sender.sendMessage("§2/sw setlobby [name] §6 - for the waiting lobby");
 					sender.sendMessage("§2/sw setspawn [name] §6 - set a few player spawns");
-					sender.sendMessage("§2/sw setchest [name] [type] §6 - set a few chests");
+					//sender.sendMessage("§2/sw setchest [name] [type] §6 - set a few chests");
 					sender.sendMessage("§2/sw setbounds [name] [low/high] §6 - set the bounds");
 					sender.sendMessage("§2/sw savearena [name]");
 					sender.sendMessage("");
@@ -561,7 +561,7 @@ public class Main extends JavaPlugin implements Listener {
 				sender.sendMessage("§2/sw createarena [name]");
 				sender.sendMessage("§2/sw setlobby [name] §6 - for the waiting lobby");
 				sender.sendMessage("§2/sw setspawn [name] §6 - set a few player spawns");
-				sender.sendMessage("§2/sw setchest [name] [type] §6 - set a few chests");
+				//sender.sendMessage("§2/sw setchest [name] [type] §6 - set a few chests");
 				sender.sendMessage("§2/sw setbounds [name] [low/high] §6 - set the bounds");
 				sender.sendMessage("§2/sw savearena [name]");
 				sender.sendMessage("");
@@ -1412,18 +1412,37 @@ public class Main extends JavaPlugin implements Listener {
 				}
 
 				if (b != null) {
-					ArenaBlock ablock = (ArenaBlock) b;
-					try {
-						Block b_ = ablock.getBlock().getWorld().getBlockAt(ablock.getBlock().getLocation());
-						if (!b_.getType().toString().equalsIgnoreCase(ablock.getMaterial().toString())) {
-							b_.setType(ablock.getMaterial());
-							b_.setData(ablock.getData());
-							// .setTypeIdAndData(ablock.getMaterial().getId(), ablock.getData(), false);
+					//if(b instanceof ArenaBlock){
+						ArenaBlock ablock = (ArenaBlock) b;
+						try {
+							Block b_ = ablock.getBlock().getWorld().getBlockAt(ablock.getBlock().getLocation());
+							if (!b_.getType().toString().equalsIgnoreCase(ablock.getMaterial().toString())) {
+								b_.setType(ablock.getMaterial());
+								b_.setData(ablock.getData());
+								// .setTypeIdAndData(ablock.getMaterial().getId(), ablock.getData(), false);
+							}
+							if(b_.getType() == Material.CHEST){
+								((Chest)b_.getState()).getInventory().setContents(ablock.getInventory());
+								((Chest)b_.getState()).update();
+							}
+						} catch (IllegalStateException e) {
+							failcount += 1;
+							failedblocks.add(ablock);
 						}
-					} catch (IllegalStateException e) {
-						failcount += 1;
-						failedblocks.add(ablock);
-					}
+					/*}else {
+						ChestBlock ablock = (ChestBlock) b;
+						try {
+							Block b_ = ablock.getBlock().getWorld().getBlockAt(ablock.getBlock().getLocation());
+							if (!b_.getType().toString().equalsIgnoreCase(ablock.getMaterial().toString())) {
+								b_.setType(ablock.getMaterial());
+								b_.setData(ablock.getData());
+								((Chest)b_.getState()).getInventory().setContents(ablock.getInventory());
+								// .setTypeIdAndData(ablock.getMaterial().getId(), ablock.getData(), false);
+							}
+						} catch (IllegalStateException e) {
+						}
+					}*/
+					
 				} else {
 					break;
 				}
@@ -1450,6 +1469,13 @@ public class Main extends JavaPlugin implements Listener {
 					getServer().getWorld(ablock.world).getBlockAt(new Location(getServer().getWorld(ablock.world), ablock.x, ablock.y, ablock.z)).setType(Material.WOOL);
 					getServer().getWorld(ablock.world).getBlockAt(new Location(getServer().getWorld(ablock.world), ablock.x, ablock.y, ablock.z)).getTypeId();
 					getServer().getWorld(ablock.world).getBlockAt(new Location(getServer().getWorld(ablock.world), ablock.x, ablock.y, ablock.z)).setType(ablock.getMaterial());
+					Block b_ = getServer().getWorld(ablock.world).getBlockAt(new Location(getServer().getWorld(ablock.world), ablock.x, ablock.y, ablock.z));
+					System.out.println(ablock.getMaterial() + " " + b_.getType());
+					if(b_.getType() == Material.CHEST){
+						System.out.println(ablock.getInventory().length);
+						((Chest)b_.getState()).getInventory().setContents(ablock.getInventory());
+						((Chest)b_.getState()).update();
+					}
 				}
 				getLogger().info("Successfully finished!");
 
@@ -1492,15 +1518,28 @@ public class Main extends JavaPlugin implements Listener {
 				for (int k = 0; k <= length; k++) {
 					Block change = c.getWorld().getBlockAt(start.getBlockX() + i, start.getBlockY() + j, start.getBlockZ() + k);
 
-					// if(change.getType() != Material.AIR){
-					ArenaBlock bl = new ArenaBlock(change);
+					ArenaBlock bl;
+					if(change.getType() == Material.CHEST){
+						bl = new ArenaBlock(change, true);
+					}else{
+						bl = new ArenaBlock(change, false);
+					}
+
+					
+					/*if(change.getType() == Material.CHEST){
+						ChestBlock bl_ = new ChestBlock(change);
+						try {
+							oos.writeObject(bl_);
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}*/
 
 					try {
 						oos.writeObject(bl);
 					} catch (IOException e) {
 						e.printStackTrace();
 					}
-					// }
 
 				}
 			}
@@ -1543,7 +1582,12 @@ public class Main extends JavaPlugin implements Listener {
 					Block change = c.getWorld().getBlockAt(start.getBlockX() + i, start.getBlockY() + j, start.getBlockZ() + k);
 
 					// if(change.getType() != Material.AIR){
-					ArenaBlock bl = new ArenaBlock(change);
+					ArenaBlock bl;
+					if(change.getType() == Material.CHEST){
+						bl = new ArenaBlock(change, true);
+					}else{
+						bl = new ArenaBlock(change, false);
+					}
 
 					try {
 						oos.writeObject(bl);

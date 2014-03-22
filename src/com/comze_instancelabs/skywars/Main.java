@@ -34,6 +34,7 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
@@ -43,10 +44,10 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
@@ -373,6 +374,20 @@ public class Main extends JavaPlugin implements Listener {
 						getConfig().set("mainlobby.loc.z", p.getLocation().getBlockZ());
 						this.saveConfig();
 						sender.sendMessage(saved_mainlobby);
+					}
+				} else if (action.equalsIgnoreCase("spawnsetup") || action.equalsIgnoreCase("getbeacon")) {
+					if (sender.hasPermission("skywars.setup")) {
+						if(args.length > 1){
+							String arena = args[1];
+							Player p = (Player) sender;
+							ItemStack beacon = new ItemStack(Material.BEACON);
+							ItemMeta im = beacon.getItemMeta();
+							im.setDisplayName(arena);
+							beacon.setItemMeta(im);
+							p.getInventory().addItem(beacon);
+							p.updateInventory();
+						}
+						
 					}
 				} else if (action.equalsIgnoreCase("leave")) {
 					Player p = (Player) sender;
@@ -809,6 +824,30 @@ public class Main extends JavaPlugin implements Listener {
 		}
 	}
 
+	
+	@EventHandler
+	public void onBlockPlace(BlockPlaceEvent event){
+		if(event.getBlock().getType() == Material.BEACON){
+			//TODO try out
+			Player p = event.getPlayer();
+			String arenaname = event.getItemInHand().getItemMeta().getDisplayName();
+			
+			if(!getConfig().isSet(arenaname)){
+				p.sendMessage(ChatColor.RED + "Could not find the arena.");
+				return;
+			}
+			String count = Integer.toString(this.getCurrentSpawnIndex(arenaname));
+
+			getConfig().set(arenaname + ".spawn." + count + ".world", p.getWorld().getName());
+			getConfig().set(arenaname + ".spawn." + count + ".loc.x", p.getLocation().getBlockX());
+			getConfig().set(arenaname + ".spawn." + count + ".loc.y", p.getLocation().getBlockY());
+			getConfig().set(arenaname + ".spawn." + count + ".loc.z", p.getLocation().getBlockZ());
+			getConfig().set(arenaname + ".spawn." + count + ".loc.yaw", p.getLocation().getYaw());
+			getConfig().set(arenaname + ".spawn." + count + ".loc.pitch", p.getLocation().getPitch());
+			this.saveConfig();
+			p.sendMessage(ChatColor.GREEN + "Saved spawn: " + " Count: " + count);
+		}
+	}
 	
 	@EventHandler
    	public void onPlayerCommandPreprocessEvent(PlayerCommandPreprocessEvent event) {

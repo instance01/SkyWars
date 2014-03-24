@@ -18,11 +18,14 @@ import net.milkbowl.vault.economy.EconomyResponse;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Color;
 import org.bukkit.DyeColor;
+import org.bukkit.FireworkEffect;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.FireworkEffect.Type;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Chest;
@@ -31,6 +34,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -44,11 +48,16 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.FireworkMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.scoreboard.DisplaySlot;
+import org.bukkit.scoreboard.Objective;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.ScoreboardManager;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
 
@@ -102,7 +111,8 @@ public class Main extends JavaPlugin implements Listener {
 	public String arena_full = "";
 	public String removed_arena = "";
 	public String winner_an = "";
-	
+	public String join_announcement = "";
+
 	// anouncements
 	public String starting = "";
 	public String started = "";
@@ -151,7 +161,26 @@ public class Main extends JavaPlugin implements Listener {
 		getConfig().addDefault("strings.starting_announcement", "&aStarting a new SkyWars Game in &6");
 		getConfig().addDefault("strings.started_announcement", "&aA new SkyWars Round has started!");
 		getConfig().addDefault("strings.winner_announcement", "&6<player> &awon the game on arena &6<arena>!");
+		getConfig().addDefault("strings.join_announcement", "&6<player> &awon the game on arena &6<arena>!");
 
+		//TODO sign option
+		getConfig().addDefault("config.sign_join.line0", "&6MobEscape");
+		getConfig().addDefault("config.sign_join.line1", "");
+		getConfig().addDefault("config.sign_join.line2", "");
+		getConfig().addDefault("config.sign_join.line3", "");
+		getConfig().addDefault("config.sign_ingame.line0", "&6MobEscape");
+		getConfig().addDefault("config.sign_ingame.line1", "");
+		getConfig().addDefault("config.sign_ingame.line2", "");
+		getConfig().addDefault("config.sign_ingame.line3", "");
+		getConfig().addDefault("config.sign_restart.line0", "&6MobEscape");
+		getConfig().addDefault("config.sign_restart.line1", "");
+		getConfig().addDefault("config.sign_restart.line2", "");
+		getConfig().addDefault("config.sign_restart.line3", "");
+		//getConfig().addDefault("config.sign_second_line_join", "&a[Join]");
+		//getConfig().addDefault("config.sign_second_line_ingame", "&c[Ingame]");
+		//getConfig().addDefault("config.sign_second_line_restarting", "&6[Restarting]");
+
+		
 		getConfig().options().copyDefaults(true);
 		if(getConfig().isSet("config.min_players")){
 			getConfig().set("config.min_players", null);
@@ -216,6 +245,7 @@ public class Main extends JavaPlugin implements Listener {
 		started = getConfig().getString("strings.started_announcement").replaceAll("&", "§");
 		removed_arena = getConfig().getString("strings.removed_arena").replaceAll("&", "§");
 		winner_an = getConfig().getString("strings.winner_announcement").replaceAll("&", "§");
+		join_announcement = getConfig().getString("strings.join_announcement").replaceAll("&", "§");
 	}
 
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
@@ -386,6 +416,8 @@ public class Main extends JavaPlugin implements Listener {
 							beacon.setItemMeta(im);
 							p.getInventory().addItem(beacon);
 							p.updateInventory();
+						}else{
+							sender.sendMessage(ChatColor.RED + "Usage: /sw getbeacon [arena]");
 						}
 						
 					}
@@ -492,7 +524,7 @@ public class Main extends JavaPlugin implements Listener {
 										final Player p__ = p_;
 										Bukkit.getScheduler().runTaskLater(this, new Runnable() {
 											public void run() {
-												p__.teleport(getSpawnForPlayer(p__, arena));
+												p__.teleport(getSpawnForPlayer(p__, arena).add(0.3D, 7D, 0.3D));
 											}
 										}, 5);
 									}
@@ -560,7 +592,7 @@ public class Main extends JavaPlugin implements Listener {
 					sender.sendMessage("§2To §6setup §2a new arena, type in the following commands:");
 					sender.sendMessage("§2/sw createarena [name]");
 					sender.sendMessage("§2/sw setlobby [name] §6 - for the waiting lobby");
-					sender.sendMessage("§2/sw setspawn [name] §6 - set a few player spawns");
+					sender.sendMessage("§2/sw getbeacon [name] §6 - set a few player spawns");
 					//sender.sendMessage("§2/sw setchest [name] [type] §6 - set a few chests");
 					sender.sendMessage("§2/sw setbounds [name] [low/high] §6 - set the bounds");
 					sender.sendMessage("§2/sw savearena [name]");
@@ -574,7 +606,7 @@ public class Main extends JavaPlugin implements Listener {
 				sender.sendMessage("§2To §6setup §2a new arena, type in the following commands:");
 				sender.sendMessage("§2/sw createarena [name]");
 				sender.sendMessage("§2/sw setlobby [name] §6 - for the waiting lobby");
-				sender.sendMessage("§2/sw setspawn [name] §6 - set a few player spawns");
+				sender.sendMessage("§2/sw getbeacon [name] §6 - set a few player spawns");
 				//sender.sendMessage("§2/sw setchest [name] [type] §6 - set a few chests");
 				sender.sendMessage("§2/sw setbounds [name] [low/high] §6 - set the bounds");
 				sender.sendMessage("§2/sw savearena [name]");
@@ -770,6 +802,8 @@ public class Main extends JavaPlugin implements Listener {
 						}
 					}
 				}
+				
+				m.updateScoreboard();
 
 				if (count < 2) {
 					// last man standing!
@@ -832,20 +866,39 @@ public class Main extends JavaPlugin implements Listener {
 			Player p = event.getPlayer();
 			String arenaname = event.getItemInHand().getItemMeta().getDisplayName();
 			
+			if(arenaname == null)
+				return;
+			
 			if(!getConfig().isSet(arenaname)){
 				p.sendMessage(ChatColor.RED + "Could not find the arena.");
 				return;
 			}
 			String count = Integer.toString(this.getCurrentSpawnIndex(arenaname));
 
-			getConfig().set(arenaname + ".spawn." + count + ".world", p.getWorld().getName());
-			getConfig().set(arenaname + ".spawn." + count + ".loc.x", p.getLocation().getBlockX());
-			getConfig().set(arenaname + ".spawn." + count + ".loc.y", p.getLocation().getBlockY());
-			getConfig().set(arenaname + ".spawn." + count + ".loc.z", p.getLocation().getBlockZ());
-			getConfig().set(arenaname + ".spawn." + count + ".loc.yaw", p.getLocation().getYaw());
-			getConfig().set(arenaname + ".spawn." + count + ".loc.pitch", p.getLocation().getPitch());
+			getConfig().set(arenaname + ".spawn." + count + ".world", event.getBlock().getLocation().getWorld().getName());
+			getConfig().set(arenaname + ".spawn." + count + ".loc.x", event.getBlock().getLocation().getBlockX());
+			getConfig().set(arenaname + ".spawn." + count + ".loc.y", event.getBlock().getLocation().getBlockY());
+			getConfig().set(arenaname + ".spawn." + count + ".loc.z", event.getBlock().getLocation().getBlockZ());
+			getConfig().set(arenaname + ".spawn." + count + ".loc.yaw", event.getBlock().getLocation().getYaw());
+			getConfig().set(arenaname + ".spawn." + count + ".loc.pitch", event.getBlock().getLocation().getPitch());
 			this.saveConfig();
 			p.sendMessage(ChatColor.GREEN + "Saved spawn: " + " Count: " + count);
+			Location l = event.getBlock().getLocation();
+			l.clone().add(0D, 5D, 0D).getBlock().setType(Material.GLASS);
+			l.clone().add(0D, 6D, 1D).getBlock().setType(Material.GLASS);
+			l.clone().add(0D, 6D, -1D).getBlock().setType(Material.GLASS);
+			l.clone().add(1D, 6D, 0D).getBlock().setType(Material.GLASS);
+			l.clone().add(-1D, 6D, 0D).getBlock().setType(Material.GLASS);
+			l.clone().add(0D, 7D, 1D).getBlock().setType(Material.GLASS);
+			l.clone().add(0D, 7D, -1D).getBlock().setType(Material.GLASS);
+			l.clone().add(1D, 7D, 0D).getBlock().setType(Material.GLASS);
+			l.clone().add(-1D, 7D, 0D).getBlock().setType(Material.GLASS);
+			l.clone().add(0D, 8D, 1D).getBlock().setType(Material.GLASS);
+			l.clone().add(0D, 8D, -1D).getBlock().setType(Material.GLASS);
+			l.clone().add(1D, 8D, 0D).getBlock().setType(Material.GLASS);
+			l.clone().add(-1D, 8D, 0D).getBlock().setType(Material.GLASS);
+			l.clone().add(0D, 9D, 0D).getBlock().setType(Material.GLASS);
+			event.setCancelled(true);
 		}
 	}
 	
@@ -1024,6 +1077,7 @@ public class Main extends JavaPlugin implements Listener {
 			if (p.isOnline()) {
 				p.getInventory().setContents(pinv.get(p));
 				p.updateInventory();
+				removeScoreboard(arena, p);
 			}
 
 			if (winner.containsKey(p)) {
@@ -1074,10 +1128,11 @@ public class Main extends JavaPlugin implements Listener {
 				count_++;
 			}
 		}
-		if (count_ > getArenaMaxPlayers(arena) - 1) {
+		if (count_ > getArenaMaxPlayers(arena) - 1 && !p.hasPermission("skywars.vip")) {
 			p.sendMessage(arena_full);
 			return;
 		}
+
 		
 		// continue
 		arenap.put(p, arena);
@@ -1098,13 +1153,22 @@ public class Main extends JavaPlugin implements Listener {
 				count++;
 			}
 		}
+		
+		for (Player p_ : arenap.keySet()) {
+			if (arenap.get(p_).equalsIgnoreCase(arena)) {
+				p_.sendMessage(join_announcement.replace("<player>", p.getName()).replace("<count>", Integer.toString(count) + "/" + Integer.toString(getArenaMaxPlayers(arena))));
+			}
+		}
+		
 		if (count > getArenaMinPlayers(arena) - 1) {
 			for (Player p_ : arenap.keySet()) {
 				final Player p__ = p_;
 				if (arenap.get(p_).equalsIgnoreCase(arena)) {
+					final Location l_ = getSpawnForPlayer(p__, arena).add(0D, 5D, 0D);
+					l_.getBlock().setType(Material.GLASS);
 					Bukkit.getScheduler().runTaskLater(this, new Runnable() {
 						public void run() {
-							p__.teleport(getSpawnForPlayer(p__, arena));
+							p__.teleport(l_.add(0.3D, 1D, 0.3D));
 						}
 					}, 7);
 				}
@@ -1211,6 +1275,18 @@ public class Main extends JavaPlugin implements Listener {
 						Bukkit.getServer().broadcastMessage(started);
 					}
 					
+					for (Player p_ : arenap.keySet()) {
+						if (arenap.get(p_).equalsIgnoreCase(arena)) {
+							final Player p__ = p_;
+							Bukkit.getScheduler().runTaskLater(m, new Runnable() {
+								public void run() {
+									getSpawnForPlayer(p__, arena).add(0D, 5D, 0D).getBlock().setType(Material.AIR);
+									//p__.teleport(getSpawnForPlayer(p__, arena));
+								}
+							}, 5);
+						}
+					}
+					
 					// update sign
 					Bukkit.getServer().getScheduler().runTask(m, new Runnable(){
 						public void run(){
@@ -1232,6 +1308,8 @@ public class Main extends JavaPlugin implements Listener {
 							arenap_.put(p.getName(), arena);
 						}
 					}
+					
+					m.updateScoreboard();
 					
 					Bukkit.getServer().getScheduler().cancelTask(countdown_id.get(arena));
 				}
@@ -1299,6 +1377,11 @@ public class Main extends JavaPlugin implements Listener {
 				a_n.put(arena, 0);
 				a_currentw.put(arena, 0);
 
+				
+				if(spawncount.containsKey(arena)){
+					spawncount.remove(arena);
+				}
+				
 				
 				m.reset(arena);
 				
@@ -1666,7 +1749,6 @@ public class Main extends JavaPlugin implements Listener {
 
 
 	public void refillAllChests(String arena){
-		//TODO refill chests
 		if(getAllNormalChests(arena) != null){
 			for(Location l : getAllNormalChests(arena)){
 		        Block bl = l.getWorld().getBlockAt(l);
@@ -1762,6 +1844,103 @@ public class Main extends JavaPlugin implements Listener {
 			getLogger().severe("Found invalid class in config!");
 		}
 		return ret;
+	}
+	
+	
+
+	Scoreboard board;
+	Objective objective;
+	public HashMap<String, Integer> currentscore = new HashMap<String, Integer>();
+
+	
+	public void updateScoreboard() {
+
+		for (Player pl : arenap.keySet()) {
+			Player p = pl;
+			if (board == null) {
+				board = Bukkit.getScoreboardManager().getNewScoreboard();
+			}
+			if (objective == null) {
+				objective = board.registerNewObjective("test", "dummy");
+			}
+
+			objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+
+			objective.setDisplayName("[" + arenap.get(p) + "]");
+
+			for (Player pl_ : arenap.keySet()) {
+				Player p_ = pl_;
+				if (!lost.containsKey(pl_)) {
+					int score = 0;
+					if (currentscore.containsKey(pl_.getName())) {
+						int oldscore = currentscore.get(pl_.getName());
+						if (score > oldscore) {
+							currentscore.put(pl_.getName(), score);
+						} else {
+							score = oldscore;
+						}
+					} else {
+						currentscore.put(pl_.getName(), score);
+					}
+					try{
+						if(p_.getName().length() < 15){
+							objective.getScore(Bukkit.getOfflinePlayer("§a" + p_.getName())).setScore(score);
+						}else{
+							objective.getScore(Bukkit.getOfflinePlayer("§a" + p_.getName().substring(0, p_.getName().length() - 3))).setScore(score);
+						}
+					}catch(Exception e){
+					}
+				} else if (lost.containsKey(pl_)){
+					if (currentscore.containsKey(pl_.getName())) {
+						int score = currentscore.get(pl_.getName());
+						try{
+							if(p_.getName().length() < 15){
+								board.resetScores(Bukkit.getOfflinePlayer("§a" + p_.getName()));
+								objective.getScore(Bukkit.getOfflinePlayer("§c" + p_.getName())).setScore(score);
+							}else{
+								board.resetScores(Bukkit.getOfflinePlayer("§a" + p_.getName().substring(0, p_.getName().length() - 3)));
+								objective.getScore(Bukkit.getOfflinePlayer("§c" + p_.getName().substring(0, p_.getName().length() - 3))).setScore(score);
+							}
+						}catch(Exception e){
+						}
+					}
+				}
+			}
+
+			p.setScoreboard(board);
+		}
+	}
+
+	public void removeScoreboard(String arena, Player p) {
+		try {
+			ScoreboardManager manager = Bukkit.getScoreboardManager();
+			Scoreboard sc = manager.getNewScoreboard();
+			try{
+				if(p.getName().length() < 15){
+					board.resetScores(Bukkit.getOfflinePlayer("§c" + p.getName()));
+					board.resetScores(Bukkit.getOfflinePlayer("§a" + p.getName()));
+				}else{
+					board.resetScores(Bukkit.getOfflinePlayer("§c" + p.getName().substring(0, p.getName().length() - 3)));
+					board.resetScores(Bukkit.getOfflinePlayer("§a" + p.getName().substring(0, p.getName().length() - 3)));
+				}
+				
+			}catch(Exception e){}
+
+			sc.clearSlot(DisplaySlot.SIDEBAR);
+			p.setScoreboard(sc);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void spawnFirework(Player p) {
+		Firework fw = (Firework) p.getWorld().spawnEntity(p.getLocation(), EntityType.FIREWORK);
+		FireworkMeta fwm = fw.getFireworkMeta();
+		FireworkEffect effect = FireworkEffect.builder().flicker(r.nextBoolean()).withColor(Color.AQUA).withFade(Color.ORANGE).with(Type.STAR).trail(r.nextBoolean()).build();
+		fwm.addEffect(effect);
+		int rp = r.nextInt(2) + 1;
+		fwm.setPower(rp);
+		fw.setFireworkMeta(fwm);
 	}
 	
 }

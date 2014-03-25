@@ -161,7 +161,7 @@ public class Main extends JavaPlugin implements Listener {
 		getConfig().addDefault("strings.starting_announcement", "&aStarting a new SkyWars Game in &6");
 		getConfig().addDefault("strings.started_announcement", "&aA new SkyWars Round has started!");
 		getConfig().addDefault("strings.winner_announcement", "&6<player> &awon the game on arena &6<arena>!");
-		getConfig().addDefault("strings.join_announcement", "&6<player> &awon the game on arena &6<arena>!");
+		getConfig().addDefault("strings.join_announcement", "&6<player> joined the game (&a<count>)!");
 
 		//TODO sign option
 		getConfig().addDefault("config.sign_join.line0", "&6MobEscape");
@@ -524,7 +524,7 @@ public class Main extends JavaPlugin implements Listener {
 										final Player p__ = p_;
 										Bukkit.getScheduler().runTaskLater(this, new Runnable() {
 											public void run() {
-												p__.teleport(getSpawnForPlayer(p__, arena).add(0.3D, 7D, 0.3D));
+												p__.teleport(getSpawnForPlayer(p__, arena).add(0.5D, 7D, 0.5D));
 											}
 										}, 5);
 									}
@@ -965,23 +965,33 @@ public class Main extends JavaPlugin implements Listener {
 	}
 	
 	public Location getSpawnForPlayer(Player p, String arena) {
+		System.out.println("f");
 		if(!spawncount.containsKey(arena)){
 			spawncount.put(arena, 0);
 			pspawn.put(p, 0);
 			spawncount.put(arena, spawncount.get(arena) + 1);
 			return getSpawn(arena, 0);
 		}
+
+		System.out.println("[A]" + p.getName() + " at spawn " + spawncount.get(arena));
 		
 		if(spawncount.get(arena) < this.getCurrentSpawnIndex(arena)){
 			Location ret = getSpawn(arena, spawncount.get(arena));
 			pspawn.put(p, spawncount.get(arena));
 			spawncount.put(arena, spawncount.get(arena) + 1);
+			
+			System.out.println("[B]" + p.getName() + " at spawn " + spawncount.get(arena));
+			
 			return ret;
 		}else{
 			spawncount.put(arena, 0);
 		}
 		pspawn.put(p, 0);
 		return getSpawn(arena, 0);
+	}
+	
+	public Location getSpawnForPlayerRAW(Player p, String arena) {
+		return getSpawn(arena, pspawn.get(p));
 	}
 	
 	public int getCurrentSpawnIndex(String arena) {
@@ -1168,7 +1178,7 @@ public class Main extends JavaPlugin implements Listener {
 					l_.getBlock().setType(Material.GLASS);
 					Bukkit.getScheduler().runTaskLater(this, new Runnable() {
 						public void run() {
-							p__.teleport(l_.add(0.3D, 1D, 0.3D));
+							p__.teleport(l_.add(0.5D, 1D, 0.5D));
 						}
 					}, 7);
 				}
@@ -1280,7 +1290,9 @@ public class Main extends JavaPlugin implements Listener {
 							final Player p__ = p_;
 							Bukkit.getScheduler().runTaskLater(m, new Runnable() {
 								public void run() {
-									getSpawnForPlayer(p__, arena).add(0D, 5D, 0D).getBlock().setType(Material.AIR);
+									Location l = getSpawnForPlayerRAW(p__, arena).add(0D, 5D, 0D);
+									System.out.println(l);
+									l.getBlock().setType(Material.AIR);
 									//p__.teleport(getSpawnForPlayer(p__, arena));
 								}
 							}, 5);

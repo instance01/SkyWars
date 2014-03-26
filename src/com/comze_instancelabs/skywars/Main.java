@@ -112,7 +112,9 @@ public class Main extends JavaPlugin implements Listener {
 	public String removed_arena = "";
 	public String winner_an = "";
 	public String join_announcement = "";
-
+	public String kicked_because_vip_joined = "";
+	public String commands_ingame = "";
+	
 	// anouncements
 	public String starting = "";
 	public String started = "";
@@ -162,20 +164,22 @@ public class Main extends JavaPlugin implements Listener {
 		getConfig().addDefault("strings.started_announcement", "&aA new SkyWars Round has started!");
 		getConfig().addDefault("strings.winner_announcement", "&6<player> &awon the game on arena &6<arena>!");
 		getConfig().addDefault("strings.join_announcement", "&6<player> joined the game (&a<count>)!");
-
+		getConfig().addDefault("strings.kicked_because_vip_joined", "&6You just kicked because a VIP joined the game!");
+		getConfig().addDefault("strings.commands_ingame", "§cPlease use §6/sw leave §cto leave this minigame.");
+		
 		//TODO sign option
-		getConfig().addDefault("config.sign_join.line0", "&6MobEscape");
-		getConfig().addDefault("config.sign_join.line1", "");
-		getConfig().addDefault("config.sign_join.line2", "");
-		getConfig().addDefault("config.sign_join.line3", "");
-		getConfig().addDefault("config.sign_ingame.line0", "&6MobEscape");
-		getConfig().addDefault("config.sign_ingame.line1", "");
-		getConfig().addDefault("config.sign_ingame.line2", "");
-		getConfig().addDefault("config.sign_ingame.line3", "");
-		getConfig().addDefault("config.sign_restart.line0", "&6MobEscape");
-		getConfig().addDefault("config.sign_restart.line1", "");
-		getConfig().addDefault("config.sign_restart.line2", "");
-		getConfig().addDefault("config.sign_restart.line3", "");
+		getConfig().addDefault("config.signs.sign_join.line0", "&6SkyWars");
+		getConfig().addDefault("config.signs.sign_join.line1", "[Join]");
+		getConfig().addDefault("config.signs.sign_join.line2", "<arena>");
+		getConfig().addDefault("config.signs.sign_join.line3", "<count>/<maxcount>");
+		getConfig().addDefault("config.signs.sign_ingame.line0", "&6SkyWars");
+		getConfig().addDefault("config.signs.sign_ingame.line1", "[Ingame]");
+		getConfig().addDefault("config.signs.sign_ingame.line2", "<arena>");
+		getConfig().addDefault("config.signs.sign_ingame.line3", "<count>/<maxcount>");
+		getConfig().addDefault("config.signs.sign_restart.line0", "&6SkyWars");
+		getConfig().addDefault("config.signs.sign_restart.line1", "[Restart]");
+		getConfig().addDefault("config.signs.sign_restart.line2", "<arena>");
+		getConfig().addDefault("config.signs.sign_restart.line3", "<count>/<maxcount>");
 		//getConfig().addDefault("config.sign_second_line_join", "&a[Join]");
 		//getConfig().addDefault("config.sign_second_line_ingame", "&c[Ingame]");
 		//getConfig().addDefault("config.sign_second_line_restarting", "&6[Restarting]");
@@ -197,6 +201,15 @@ public class Main extends JavaPlugin implements Listener {
 		}
 		
 		loadClasses();
+		
+		
+		try{
+			for(String arena : getConfig().getKeys(false)){
+				arenastate.put(arena, "join");
+			}
+		}catch(Exception e){
+			getLogger().warning("Could not update Arena states.");
+		}
 		
 	}
 
@@ -246,10 +259,12 @@ public class Main extends JavaPlugin implements Listener {
 		removed_arena = getConfig().getString("strings.removed_arena").replaceAll("&", "§");
 		winner_an = getConfig().getString("strings.winner_announcement").replaceAll("&", "§");
 		join_announcement = getConfig().getString("strings.join_announcement").replaceAll("&", "§");
+		kicked_because_vip_joined = getConfig().getString("strings.kicked_because_vip_joined").replaceAll("&", "§");
+		commands_ingame = getConfig().getString("strings.commands_ingame").replaceAll("&", "§");
 	}
 
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-		if (cmd.getName().equalsIgnoreCase("sw") || cmd.getName().equalsIgnoreCase("skywars")) {
+		if (cmd.getName().equalsIgnoreCase("sw") || cmd.getName().equalsIgnoreCase("sair") || cmd.getName().equalsIgnoreCase("skywars")) {
 			if (args.length > 0) {
 				String action = args[0];
 				if (action.equalsIgnoreCase("createarena")) {
@@ -481,13 +496,19 @@ public class Main extends JavaPlugin implements Listener {
 				} else if (action.equalsIgnoreCase("join")) {
 					if (args.length > 1) {
 						if (isValidArena(args[1])) {
-							Sign s = null;
+							if(arenastate.get(args[1]).equalsIgnoreCase("join")){
+								joinLobby((Player) sender, args[1]);
+							}else{
+								sender.sendMessage(arena_ingame);
+							}
+							/*Sign s = null;
 							try {
 								s = this.getSignFromArena(args[1]);
 							} catch (Exception e) {
 								getLogger().warning("No sign found for arena " + args[1] + ". May lead to errors.");
 							}
 							if (s != null) {
+								
 								if (s.getLine(1).equalsIgnoreCase("§2[join]")) {
 									joinLobby((Player) sender, args[1]);
 								} else {
@@ -495,7 +516,7 @@ public class Main extends JavaPlugin implements Listener {
 								}
 							} else {
 								sender.sendMessage(arena_invalid_sign);
-							}
+							}*/
 						} else {
 							sender.sendMessage(arena_invalid);
 						}
@@ -634,12 +655,13 @@ public class Main extends JavaPlugin implements Listener {
 			}
 
 			try {
-				Sign s = this.getSignFromArena(arena);
+				updateSign(arena, "join", count, getArenaMaxPlayers(arena));
+				/*Sign s = this.getSignFromArena(arena);
 				if (s != null) {
 					s.setLine(1, "§2[Join]");
 					s.setLine(3, Integer.toString(count - 1) + "/" + Integer.toString(getArenaMaxPlayers(arena)));
 					s.update();
-				}
+				}*/
 			} catch (Exception e) {
 				getLogger().warning("You forgot to set a sign for arena " + arena + "! This might lead to errors.");
 			}
@@ -712,6 +734,8 @@ public class Main extends JavaPlugin implements Listener {
 						p__.teleport(new Location(l.getWorld(), l.getBlockX(), l.getBlockY() + 30, l.getBlockZ()));
 						p__.setAllowFlight(true);
 						p__.setFlying(true);
+						p__.getInventory().clear();
+						p__.updateInventory();
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -776,7 +800,7 @@ public class Main extends JavaPlugin implements Listener {
 					p.sendMessage(you_fell);
 				}
 			}
-			if (event.getPlayer().getLocation().getBlockY() < getSpawn(arenap_.get(event.getPlayer().getName())).getBlockY() - 2) {
+			if (event.getPlayer().getLocation().getBlockY() < this.getLowBoundary(arenap_.get(event.getPlayer().getName())).getBlockY() - 2) {
 				lost.put(event.getPlayer(), arenap.get(event.getPlayer()));
 				final Player p__ = event.getPlayer();
 				final String arena = arenap.get(event.getPlayer());
@@ -813,19 +837,22 @@ public class Main extends JavaPlugin implements Listener {
 		}
 	}
 
+	//TODO sign handlers
 	@EventHandler
 	public void onSignUse(PlayerInteractEvent event) {
 		if (event.hasBlock()) {
 			if (event.getClickedBlock().getType() == Material.SIGN_POST || event.getClickedBlock().getType() == Material.WALL_SIGN) {
 				final Sign s = (Sign) event.getClickedBlock().getState();
 				if (s.getLine(0).toLowerCase().contains("skywars")) {
-					if (s.getLine(1).equalsIgnoreCase("§2[join]")) {
+					//if (s.getLine(1).equalsIgnoreCase("§2[join]")) {
+					if(arenastate.get(s.getLine(2)).equalsIgnoreCase("join")){
 						if(isValidArena(s.getLine(2))){
 							joinLobby(event.getPlayer(), s.getLine(2));
 						}else{
 							event.getPlayer().sendMessage(arena_invalid);
 						}
 					}
+					//}
 				}
 			}
 		}
@@ -836,7 +863,7 @@ public class Main extends JavaPlugin implements Listener {
 		Player p = event.getPlayer();
 		if (event.getLine(0).toLowerCase().equalsIgnoreCase("skywars")) {
 			if (event.getPlayer().hasPermission("skywars.sign") || event.getPlayer().hasPermission("skywars.sign") || event.getPlayer().isOp()) {
-				event.setLine(0, "§6§lSkyWars");
+				//event.setLine(0, "§6§lSkyWars");
 				if (!event.getLine(2).equalsIgnoreCase("")) {
 					String arena = event.getLine(2);
 					if (isValidArena(arena)) {
@@ -850,9 +877,16 @@ public class Main extends JavaPlugin implements Listener {
 						p.sendMessage(arena_invalid_component);
 						event.getBlock().breakNaturally();
 					}
+					
+					Sign s = (Sign) event.getBlock().getState();
+					
+					m.updateSign(arena, "join", 0, getArenaMaxPlayers(arena), event);
+					
+					/*
 					event.setLine(1, "§2[Join]");
 					event.setLine(2, arena);
-					event.setLine(3, "0/" + Integer.toString(getArenaMaxPlayers(arena)));
+					event.setLine(3, "0/" + Integer.toString(getArenaMaxPlayers(arena)));*/
+					
 				}
 			}
 		}
@@ -862,7 +896,6 @@ public class Main extends JavaPlugin implements Listener {
 	@EventHandler
 	public void onBlockPlace(BlockPlaceEvent event){
 		if(event.getBlock().getType() == Material.BEACON){
-			//TODO try out
 			Player p = event.getPlayer();
 			String arenaname = event.getItemInHand().getItemMeta().getDisplayName();
 			
@@ -904,9 +937,16 @@ public class Main extends JavaPlugin implements Listener {
 	
 	@EventHandler
    	public void onPlayerCommandPreprocessEvent(PlayerCommandPreprocessEvent event) {
-       	if(arenap.containsKey(event.getPlayer()) && !event.getPlayer().isOp()){
+		if(event.getMessage().equalsIgnoreCase("/sair")){
+   			if(arenap.containsKey(event.getPlayer())){
+   				leaveArena(event.getPlayer(), true, false);
+   				event.setCancelled(true);
+   				return;
+   			}
+   		}
+		if(arenap.containsKey(event.getPlayer()) && !event.getPlayer().isOp()){
        		if(!event.getMessage().startsWith("/sw") && !event.getMessage().startsWith("/skywars")){
-       			event.getPlayer().sendMessage("§cPlease use §6/sw leave §cto leave this minigame.");
+       			event.getPlayer().sendMessage(commands_ingame);
         		event.setCancelled(true);
        			return;
         	}
@@ -914,7 +954,6 @@ public class Main extends JavaPlugin implements Listener {
     }
 	
 
-	
 	public Sign getSignFromArena(String arena) {
 		Location b_ = new Location(getServer().getWorld(getConfig().getString(arena + ".sign.world")), getConfig().getInt(arena + ".sign.loc.x"), getConfig().getInt(arena + ".sign.loc.y"), getConfig().getInt(arena + ".sign.loc.z"));
 		BlockState bs = b_.getBlock().getState();
@@ -925,6 +964,79 @@ public class Main extends JavaPlugin implements Listener {
 		}
 		return s_;
 	}
+	
+	//TODO updatesign function
+	public HashMap<String, String> arenastate = new HashMap<String, String>();
+
+	public void updateSign(String arena, String state, int count, int maxcount, SignChangeEvent event){
+		if(state.equalsIgnoreCase("join")){
+			arenastate.put(arena, "join");
+			
+			if(event != null){
+				event.setLine(0, getConfig().getString("config.signs.sign_join.line0").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				event.setLine(1, getConfig().getString("config.signs.sign_join.line1").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				event.setLine(2, getConfig().getString("config.signs.sign_join.line2").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				event.setLine(3, getConfig().getString("config.signs.sign_join.line3").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				//event.update();
+			}
+		}else if(state.equalsIgnoreCase("ingame")){
+			arenastate.put(arena, "ingame");
+			//Sign s = getSignFromArena(arena);
+			if(event != null){
+				event.setLine(0, getConfig().getString("config.signs.sign_ingame.line0").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				event.setLine(1, getConfig().getString("config.signs.sign_ingame.line1").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				event.setLine(2, getConfig().getString("config.signs.sign_ingame.line2").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				event.setLine(3, getConfig().getString("config.signs.sign_ingame.line3").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				//event.update();
+			}
+		}else if(state.equalsIgnoreCase("restart")){
+			arenastate.put(arena, "restart");
+			//Sign s = getSignFromArena(arena);
+			if(event != null){
+				event.setLine(0, getConfig().getString("config.signs.sign_restart.line0").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				event.setLine(1, getConfig().getString("config.signs.sign_restart.line1").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				event.setLine(2, getConfig().getString("config.signs.sign_restart.line2").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				event.setLine(3, getConfig().getString("config.signs.sign_restart.line3").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				//event.update();
+			}
+		}
+	}
+	
+	
+	public void updateSign(String arena, String state, int count, int maxcount){
+		if(state.equalsIgnoreCase("join")){
+			arenastate.put(arena, "join");
+			Sign s = getSignFromArena(arena);
+			if(s != null){
+				s.setLine(0, getConfig().getString("config.signs.sign_join.line0").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				s.setLine(1, getConfig().getString("config.signs.sign_join.line1").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				s.setLine(2, getConfig().getString("config.signs.sign_join.line2").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				s.setLine(3, getConfig().getString("config.signs.sign_join.line3").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				s.update();
+			}
+		}else if(state.equalsIgnoreCase("ingame")){
+			arenastate.put(arena, "ingame");
+			Sign s = getSignFromArena(arena);
+			if(s != null){
+				s.setLine(0, getConfig().getString("config.signs.sign_ingame.line0").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				s.setLine(1, getConfig().getString("config.signs.sign_ingame.line1").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				s.setLine(2, getConfig().getString("config.signs.sign_ingame.line2").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				s.setLine(3, getConfig().getString("config.signs.sign_ingame.line3").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				s.update();
+			}
+		}else if(state.equalsIgnoreCase("restart")){
+			arenastate.put(arena, "restart");
+			Sign s = getSignFromArena(arena);
+			if(s != null){
+				s.setLine(0, getConfig().getString("config.signs.sign_restart.line0").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				s.setLine(1, getConfig().getString("config.signs.sign_restart.line1").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				s.setLine(2, getConfig().getString("config.signs.sign_restart.line2").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				s.setLine(3, getConfig().getString("config.signs.sign_restart.line3").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				s.update();
+			}
+		}
+	}
+
 
 	public Location getLobby(String arena) {
 		Location ret = null;
@@ -965,7 +1077,6 @@ public class Main extends JavaPlugin implements Listener {
 	}
 	
 	public Location getSpawnForPlayer(Player p, String arena) {
-		System.out.println("f");
 		if(!spawncount.containsKey(arena)){
 			spawncount.put(arena, 0);
 			pspawn.put(p, 0);
@@ -973,15 +1084,10 @@ public class Main extends JavaPlugin implements Listener {
 			return getSpawn(arena, 0);
 		}
 
-		System.out.println("[A]" + p.getName() + " at spawn " + spawncount.get(arena));
-		
 		if(spawncount.get(arena) < this.getCurrentSpawnIndex(arena)){
 			Location ret = getSpawn(arena, spawncount.get(arena));
 			pspawn.put(p, spawncount.get(arena));
 			spawncount.put(arena, spawncount.get(arena) + 1);
-			
-			System.out.println("[B]" + p.getName() + " at spawn " + spawncount.get(arena));
-			
 			return ret;
 		}else{
 			spawncount.put(arena, 0);
@@ -1138,9 +1244,22 @@ public class Main extends JavaPlugin implements Listener {
 				count_++;
 			}
 		}
-		if (count_ > getArenaMaxPlayers(arena) - 1 && !p.hasPermission("skywars.vip")) {
-			p.sendMessage(arena_full);
-			return;
+		if (count_ > getArenaMaxPlayers(arena) - 1) {
+			if(!p.hasPermission("skywars.vip")){
+				p.sendMessage(arena_full);
+				Player p___ = null;
+				for (Player p_ : arenap.keySet()) {
+					if (arenap.get(p_).equalsIgnoreCase(arena)) {
+						p___ = p_;
+						break;
+					}
+				}
+				if(p___ != null){
+					p___.sendMessage(kicked_because_vip_joined);
+					leaveArena(p___, true, false);
+				}
+				return;
+			}
 		}
 
 		
@@ -1207,11 +1326,12 @@ public class Main extends JavaPlugin implements Listener {
 		}
 
 		try {
-			Sign s = this.getSignFromArena(arena);
+			updateSign(arena, "join", count, getArenaMaxPlayers(arena));
+			/*Sign s = this.getSignFromArena(arena);
 			if (s != null) {
 				s.setLine(3, Integer.toString(count) + "/" + Integer.toString(getArenaMaxPlayers(arena)));
 				s.update();
-			}
+			}*/
 		} catch (Exception e) {
 			getLogger().warning("You forgot to set a sign for arena " + arena + "! This may lead to errors.");
 		}
@@ -1302,11 +1422,18 @@ public class Main extends JavaPlugin implements Listener {
 					// update sign
 					Bukkit.getServer().getScheduler().runTask(m, new Runnable(){
 						public void run(){
-							Sign s = getSignFromArena(arena);
+							/*Sign s = getSignFromArena(arena);
 							if (s != null) {
 								s.setLine(1, "§4[Ingame]");
 								s.update();
+							}*/
+							int playercount = 0;
+							for (Player p : arenap.keySet()) {
+								if (arenap.get(p).equalsIgnoreCase(arena)) {
+									playercount++;
+								}
 							}
+							m.updateSign(arena, "ingame", playercount, m.getArenaMaxPlayers(arena));
 						}
 					});
 					
@@ -1372,12 +1499,13 @@ public class Main extends JavaPlugin implements Listener {
 
 				winner.clear();
 
-				Sign s = getSignFromArena(arena);
+				/*Sign s = getSignFromArena(arena);
 				if (s != null) {
 					s.setLine(1, "§2[Join]");
 					s.setLine(3, "0/" + Integer.toString(getArenaMaxPlayers(arena)));
 					s.update();
-				}
+				}*/
+				m.updateSign(arena, "join", 0, getArenaMaxPlayers(arena));
 
 				h.remove(arena);
 
@@ -1612,12 +1740,13 @@ public class Main extends JavaPlugin implements Listener {
 				}
 				getLogger().info("Successfully finished!");
 
-				Sign s = getSignFromArena(arena);
+				/*Sign s = getSignFromArena(arena);
 				if (s != null) {
 					s.setLine(1, "§2[Join]");
 					s.setLine(3, "0/" + Integer.toString(getArenaMaxPlayers(arena)));
 					s.update();
-				}
+				}*/
+				m.updateSign(arena, "join", 0, getArenaMaxPlayers(arena));
 			}
 		}, 40L);
 

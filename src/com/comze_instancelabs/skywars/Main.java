@@ -21,11 +21,11 @@ import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.DyeColor;
 import org.bukkit.FireworkEffect;
+import org.bukkit.FireworkEffect.Type;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Sound;
-import org.bukkit.FireworkEffect.Type;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.Chest;
@@ -40,6 +40,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.block.SignChangeEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
@@ -144,7 +145,12 @@ public class Main extends JavaPlugin implements Listener {
 		getConfig().addDefault("config.kits.default.name", "default");
 		getConfig().addDefault("config.kits.default.items", "276#1");
 		getConfig().addDefault("config.kits.default.lore", "The default class.");
-
+		getConfig().addDefault("config.kits.default.requires_money", false);
+		getConfig().addDefault("config.kits.default.requires_permission", false);
+		getConfig().addDefault("config.kits.default.money_amount", 100);
+		getConfig().addDefault("config.kits.default.permission_node", "skywars.kits.default");
+		
+		
 		getConfig().addDefault("strings.saved.arena", "&aSuccessfully saved arena.");
 		getConfig().addDefault("strings.saved.lobby", "&aSuccessfully saved lobby.");
 		getConfig().addDefault("strings.saved.setup", "&6Successfully saved spawn. Now setting up, might &2lag&6 a little bit.");
@@ -166,8 +172,8 @@ public class Main extends JavaPlugin implements Listener {
 		getConfig().addDefault("strings.join_announcement", "&6<player> joined the game (&a<count>)!");
 		getConfig().addDefault("strings.kicked_because_vip_joined", "&6You just kicked because a VIP joined the game!");
 		getConfig().addDefault("strings.commands_ingame", "§cPlease use §6/sw leave §cto leave this minigame.");
+		getConfig().addDefault("strings.nokitperm", "§cYou don't have permission for this kit.");
 		
-		//TODO sign option
 		getConfig().addDefault("config.signs.sign_join.line0", "&6SkyWars");
 		getConfig().addDefault("config.signs.sign_join.line1", "[Join]");
 		getConfig().addDefault("config.signs.sign_join.line2", "<arena>");
@@ -180,9 +186,6 @@ public class Main extends JavaPlugin implements Listener {
 		getConfig().addDefault("config.signs.sign_restart.line1", "[Restart]");
 		getConfig().addDefault("config.signs.sign_restart.line2", "<arena>");
 		getConfig().addDefault("config.signs.sign_restart.line3", "<count>/<maxcount>");
-		//getConfig().addDefault("config.sign_second_line_join", "&a[Join]");
-		//getConfig().addDefault("config.sign_second_line_ingame", "&c[Ingame]");
-		//getConfig().addDefault("config.sign_second_line_restarting", "&6[Restarting]");
 
 		
 		getConfig().options().copyDefaults(true);
@@ -837,7 +840,6 @@ public class Main extends JavaPlugin implements Listener {
 		}
 	}
 
-	//TODO sign handlers
 	@EventHandler
 	public void onSignUse(PlayerInteractEvent event) {
 		if (event.hasBlock()) {
@@ -854,6 +856,16 @@ public class Main extends JavaPlugin implements Listener {
 					}
 					//}
 				}
+			}
+		}
+		
+		if (event.hasItem()) {
+			final Player p = event.getPlayer();
+			if(!arenap.containsKey(p)){
+				return;
+			}
+			if(event.getItem().getTypeId() == 399){
+				this.openGUI(m, p.getName());
 			}
 		}
 	}
@@ -952,6 +964,18 @@ public class Main extends JavaPlugin implements Listener {
         	}
        	}
     }
+	
+	
+	//TODO check that
+	@EventHandler
+	public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
+		if(event.getEntity() instanceof Player && event.getDamager() instanceof Player){
+			Player damager = (Player) event.getDamager();
+			if(arenap.containsKey(damager) && lost.containsKey(damager)){
+				event.setCancelled(true);
+			}
+		}
+	}
 	
 
 	public Sign getSignFromArena(String arena) {
@@ -1273,6 +1297,8 @@ public class Main extends JavaPlugin implements Listener {
 			public void run() {
 				p.teleport(getLobby(arena));
 				p.setFoodLevel(20);
+				p.getInventory().addItem(new ItemStack(Material.NETHER_STAR));
+				p.updateInventory();
 			}
 		}, 4);
 
@@ -1600,6 +1626,13 @@ public class Main extends JavaPlugin implements Listener {
 	}
 	
 	public void setClass(String classname, String player){
+		if(!kitPlayerHasPermission(classname, Bukkit.getPlayer(player))){
+			Bukkit.getPlayer(player).sendMessage(getConfig().getString("strings.nokitperm"));
+			return;
+		}
+		if(kitRequiresMoney(classname)){
+			kitTakeMoney(Bukkit.getPlayer(player), classname.toLowerCase());
+		}
 		pclass.put(player, aclasses.get(classname));
 	}
 	
@@ -1611,6 +1644,39 @@ public class Main extends JavaPlugin implements Listener {
 				if(!getConfig().isSet("config.kits." + aclass + ".items") || !getConfig().isSet("config.kits." + aclass + ".lore")){
 					getLogger().warning("One of the classes found in the config file is invalid: " + aclass + ". Missing itemid or lore!");
 				}
+			}
+		}
+	}
+	
+	public boolean kitRequiresMoney(String kit){
+		return getConfig().getBoolean("config.kits." + kit + ".requires_money");
+	}
+	
+	public boolean kitTakeMoney(Player p, String kit) {
+		if(!economy){
+			getLogger().warning("Economy is turned OFF. Turn it ON in the config.");
+			return false;
+		}
+		if (econ.getBalance(p.getName()) >= getConfig().getInt("config.kits." + kit + ".money_amount")) {
+			EconomyResponse r = econ.withdrawPlayer(p.getName(), getConfig().getInt("config.kits." + kit + ".money_amount"));
+			if (!r.transactionSuccess()) {
+				p.sendMessage(String.format("An error occured: %s", r.errorMessage));
+			}
+			return true;
+		} else {
+			p.sendMessage("§4You don't have enough money!");
+			return false;
+		}
+	}
+	
+	public boolean kitPlayerHasPermission(String kit, Player p){
+		if(!getConfig().getBoolean("config.kits." + kit + ".requires_permission")){
+			return true;
+		}else{
+			if(p.hasPermission(getConfig().getString("config.kits." + kit + ".permission_node"))){
+				return true;
+			}else{
+				return false;
 			}
 		}
 	}
@@ -2083,5 +2149,8 @@ public class Main extends JavaPlugin implements Listener {
 		fwm.setPower(rp);
 		fw.setFireworkMeta(fwm);
 	}
+	
+	
+	
 	
 }

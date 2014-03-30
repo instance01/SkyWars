@@ -830,7 +830,7 @@ public class Main extends JavaPlugin implements Listener {
 					}
 				}
 				
-				m.updateScoreboard();
+				m.updateScoreboard(arena);
 
 				if (count < 2) {
 					// last man standing!
@@ -1316,28 +1316,55 @@ public class Main extends JavaPlugin implements Listener {
 		}
 		
 		if (count > getArenaMinPlayers(arena) - 1) {
-			for (Player p_ : arenap.keySet()) {
-				final Player p__ = p_;
-				if (arenap.get(p_).equalsIgnoreCase(arena)) {
-					final Location l_ = getSpawnForPlayer(p__, arena).add(0D, 5D, 0D);
-					l_.getBlock().setType(Material.GLASS);
-					Bukkit.getScheduler().runTaskLater(this, new Runnable() {
-						public void run() {
-							p__.teleport(l_.add(0.5D, 1D, 0.5D));
+			final int lobby_c = getConfig().getInt("config.lobby_countdown");
+
+			if(!m.lobby_countdown_id.containsKey(arena)){
+				int t = Bukkit.getServer().getScheduler().runTaskTimerAsynchronously(m, new Runnable() {
+					public void run() {
+						if (!m.lobby_countdown_count.containsKey(arena)) {
+							m.lobby_countdown_count.put(arena, lobby_c);
 						}
-					}, 7);
-				}
+						int count = m.lobby_countdown_count.get(arena);
+						for (Player p : m.arenap.keySet()) {
+							if (m.arenap.get(p).equalsIgnoreCase(arena)) {
+								p.sendMessage(ChatColor.GRAY + "Teleporting to arena in " + Integer.toString(count) + " seconds.");
+							}
+						}
+						count--;
+						m.lobby_countdown_count.put(arena, count);
+						if (count < 0) {
+							m.lobby_countdown_count.put(arena, lobby_c);
+							
+							for (Player p_ : arenap.keySet()) {
+								final Player p__ = p_;
+								if (arenap.get(p_).equalsIgnoreCase(arena)) {
+									final Location l_ = getSpawnForPlayer(p__, arena).add(0D, 5D, 0D);
+									l_.getBlock().setType(Material.GLASS);
+									Bukkit.getScheduler().runTaskLater(m, new Runnable() {
+										public void run() {
+											p__.teleport(l_.add(0.5D, 1D, 0.5D));
+										}
+									}, 7);
+								}
+							}
+							Bukkit.getScheduler().runTaskLater(m, new Runnable() {
+								public void run() {
+									if (!ingame.containsKey(arena)) {
+										ingame.put(arena, false);
+									}
+									if (!ingame.get(arena)) {
+										start(arena);
+									}
+								}
+							}, 10);
+							
+							Bukkit.getServer().getScheduler().cancelTask(m.lobby_countdown_id.get(arena));
+						}
+					}
+					}, 5, 20).getTaskId();
+					m.lobby_countdown_id.put(arena, t);
 			}
-			Bukkit.getScheduler().runTaskLater(this, new Runnable() {
-				public void run() {
-					if (!ingame.containsKey(arena)) {
-						ingame.put(arena, false);
-					}
-					if (!ingame.get(arena)) {
-						start(arena);
-					}
-				}
-			}, 10);
+
 		}
 		
 		if (!ingame.containsKey(arena)) {
@@ -1374,6 +1401,9 @@ public class Main extends JavaPlugin implements Listener {
 	static ArrayList<DyeColor> colors = new ArrayList<DyeColor>(Arrays.asList(DyeColor.BLUE, DyeColor.RED, DyeColor.CYAN, DyeColor.BLACK, DyeColor.GREEN, DyeColor.YELLOW, DyeColor.ORANGE, DyeColor.PURPLE));
 	static Random r = new Random();
 
+	final public HashMap<String, Integer> lobby_countdown_count = new HashMap<String, Integer>();
+	final public HashMap<String, Integer> lobby_countdown_id = new HashMap<String, Integer>();
+	
 	final public HashMap<String, BukkitTask> h = new HashMap<String, BukkitTask>();
 	final public HashMap<String, Integer> countdown_count = new HashMap<String, Integer>();
 	final public HashMap<String, Integer> countdown_id = new HashMap<String, Integer>();
@@ -1474,7 +1504,7 @@ public class Main extends JavaPlugin implements Listener {
 						}
 					}
 					
-					m.updateScoreboard();
+					m.updateScoreboard(arena);
 					
 					Bukkit.getServer().getScheduler().cancelTask(countdown_id.get(arena));
 				}
@@ -2060,9 +2090,12 @@ public class Main extends JavaPlugin implements Listener {
 	public HashMap<String, Integer> currentscore = new HashMap<String, Integer>();
 
 	
-	public void updateScoreboard() {
+	public void updateScoreboard(String arena) {
 
 		for (Player pl : arenap.keySet()) {
+			if(!arenap.get(pl).equalsIgnoreCase(arena)){
+				return;
+			}
 			Player p = pl;
 			if (board == null) {
 				board = Bukkit.getScoreboardManager().getNewScoreboard();

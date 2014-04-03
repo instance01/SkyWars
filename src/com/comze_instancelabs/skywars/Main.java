@@ -130,6 +130,7 @@ public class Main extends JavaPlugin implements Listener {
 		getConfig().addDefault("config.auto_updating", true);
 		getConfig().addDefault("config.rounds_per_game", 10);
 		getConfig().addDefault("config.start_countdown", 5);
+		getConfig().addDefault("config.lobby_countdown", 5);
 		getConfig().addDefault("config.default_max_players", 4);
 		getConfig().addDefault("config.default_min_players", 3);
 		getConfig().addDefault("config.use_economy_reward", false);
@@ -541,6 +542,10 @@ public class Main extends JavaPlugin implements Listener {
 								sender.sendMessage("§cNoone is in this arena.");
 								return true;
 							}
+							if(m.lobby_countdown_id.containsKey(arena)){
+								sender.sendMessage(ChatColor.RED + "This arena is already starting.");
+								return true;
+							}
 							if (!ingame.get(arena)) {
 								ingame.put(arena, true);
 								for (Player p_ : arenap.keySet()) {
@@ -595,6 +600,15 @@ public class Main extends JavaPlugin implements Listener {
 					}else{
 						sender.sendMessage("§cYou are not in an arena right now.");
 					}
+				} else if (action.equalsIgnoreCase("forcestopall")) {
+					for(String arena : arenap.values()){
+						try{
+							stop(h.get(arena), arena);
+						}catch(Exception e){
+							System.out.println("Error occurred for arena " + arena + ".");
+						}
+					}
+					sender.sendMessage("§cStopped all games.");
 				} else if (action.equalsIgnoreCase("reload")) {
 					if (sender.hasPermission("skywars.reload")) {
 						this.reloadConfig();
@@ -782,12 +796,12 @@ public class Main extends JavaPlugin implements Listener {
 		if (arenap_.containsKey(event.getPlayer().getName())) {
 			if (lost.containsKey(event.getPlayer())) {
 				Location l = getSpawn(lost.get(event.getPlayer()));
+				final String arena = arenap.get(event.getPlayer());
 				final Location spectatorlobby = new Location(l.getWorld(), l.getBlockX(), l.getBlockY() + 30, l.getBlockZ());
 				if (event.getPlayer().getLocation().getBlockY() < spectatorlobby.getBlockY() || event.getPlayer().getLocation().getBlockY() > spectatorlobby.getBlockY()) {
 					final Player p = event.getPlayer();
 					final float b = p.getLocation().getYaw();
 					final float c = p.getLocation().getPitch();
-					final String arena = arenap.get(event.getPlayer());
 					Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
 						@Override
 						public void run() {
@@ -800,7 +814,26 @@ public class Main extends JavaPlugin implements Listener {
 							}
 						}
 					}, 5);
-					p.sendMessage(you_fell);
+					return;
+				}
+				Cuboid c_ = new Cuboid(m.getHighBoundary(arena), m.getLowBoundary(arena));
+				if(!c_.containsLocWithoutY(event.getPlayer().getLocation())){
+					final Player p = event.getPlayer();
+					final float b = p.getLocation().getYaw();
+					final float c = p.getLocation().getPitch();
+					Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
+						@Override
+						public void run() {
+							try {
+								p.setAllowFlight(true);
+								p.setFlying(true);
+								p.teleport(new Location(p.getWorld(), p.getLocation().getBlockX(), spectatorlobby.getBlockY(), p.getLocation().getBlockZ(), b, c));
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+						}
+					}, 5);
+					return;
 				}
 			}
 			if (event.getPlayer().getLocation().getBlockY() < this.getLowBoundary(arenap_.get(event.getPlayer().getName())).getBlockY() - 2) {
@@ -1166,6 +1199,9 @@ public class Main extends JavaPlugin implements Listener {
 
 	public void leaveArena(final Player p, boolean flag, boolean hmmthisbug) {
 		try {
+			p.getInventory().clear();
+			p.updateInventory();
+			
 			Bukkit.getScheduler().runTaskLater(this, new Runnable() {
 				public void run() {
 					if (p.isOnline()) {
@@ -1495,6 +1531,9 @@ public class Main extends JavaPlugin implements Listener {
 					
 					for (Player p : arenap.keySet()) {
 						if (arenap.get(p).equalsIgnoreCase(arena)) {
+							p.getInventory().remove(new ItemStack(Material.NETHER_STAR));
+							p.getInventory().clear();
+							p.updateInventory();
 							if(pclass.containsKey(p.getName())){
 								m.getClass(p.getName());
 							}else{
@@ -1525,6 +1564,9 @@ public class Main extends JavaPlugin implements Listener {
 
 		}
 
+		if(countdown_count.containsKey(arena)){
+			countdown_count.remove(arena);	
+		}
 		
 		// runs all that stuff later, that fixes the
 		// "players are stuck in arena" bug!
@@ -1586,6 +1628,14 @@ public class Main extends JavaPlugin implements Listener {
 
 		}, 20); // 1 second
 
+		if(m.lobby_countdown_id.containsKey(arena)){
+			try{
+				Bukkit.getServer().getScheduler().cancelTask(m.lobby_countdown_id.get(arena));	
+			}catch(Exception e){
+				
+			}
+			m.lobby_countdown_id.remove(arena);
+		}
 	}
 
 	public void clean() {

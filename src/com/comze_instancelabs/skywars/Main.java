@@ -227,6 +227,15 @@ public class Main extends JavaPlugin implements Listener {
 			getLogger().warning("Could not update Arena states.");
 		}
 		
+		
+		// This might fuck things up, it's just for matheus because he has these ideas sometimes LOL
+		// TODO remove that some time
+		for (String arena : getConfig().getKeys(false)) {
+			if (!arena.equalsIgnoreCase("mainlobby") && !arena.equalsIgnoreCase("strings") && !arena.equalsIgnoreCase("config")) {
+				m.reset(arena);
+			}
+		}
+		
 	}
 
 	private boolean setupEconomy() {
@@ -767,6 +776,10 @@ public class Main extends JavaPlugin implements Listener {
 						p__.setAllowFlight(true);
 						p__.setFlying(true);
 						p__.getInventory().clear();
+						p__.getInventory().setHelmet(null);
+						p__.getInventory().setChestplate(null);
+						p__.getInventory().setLeggings(null);
+						p__.getInventory().setBoots(null);
 						p__.updateInventory();
 					} catch (Exception e) {
 						e.printStackTrace();
@@ -1246,6 +1259,10 @@ public class Main extends JavaPlugin implements Listener {
 	public void leaveArena(final Player p, boolean flag, boolean hmmthisbug) {
 		try {
 			p.getInventory().clear();
+			p.getInventory().setHelmet(null);
+			p.getInventory().setChestplate(null);
+			p.getInventory().setLeggings(null);
+			p.getInventory().setBoots(null);
 			p.updateInventory();
 			
 			Bukkit.getScheduler().runTaskLater(this, new Runnable() {
@@ -1384,6 +1401,10 @@ public class Main extends JavaPlugin implements Listener {
 		pinv.put(p, p.getInventory().getContents());
 		p.setGameMode(GameMode.SURVIVAL);
 		p.getInventory().clear();
+		p.getInventory().setHelmet(null);
+		p.getInventory().setChestplate(null);
+		p.getInventory().setLeggings(null);
+		p.getInventory().setBoots(null);
 		p.updateInventory();
 		Bukkit.getScheduler().runTaskLater(this, new Runnable() {
 			public void run() {
@@ -1588,6 +1609,10 @@ public class Main extends JavaPlugin implements Listener {
 						if (arenap.get(p).equalsIgnoreCase(arena)) {
 							p.getInventory().remove(new ItemStack(Material.NETHER_STAR));
 							p.getInventory().clear();
+							p.getInventory().setHelmet(null);
+							p.getInventory().setChestplate(null);
+							p.getInventory().setLeggings(null);
+							p.getInventory().setBoots(null);
 							p.updateInventory();
 							if(pclass.containsKey(p.getName())){
 								m.getClass(p.getName());
@@ -1754,7 +1779,10 @@ public class Main extends JavaPlugin implements Listener {
 	public void getClass(String player){
 		AClass c = pclass.get(player);
 		getServer().getPlayer(player).getInventory().clear();
-		getServer().getPlayer(player).getInventory().setArmorContents(null);
+		getServer().getPlayer(player).getInventory().setHelmet(null);
+		getServer().getPlayer(player).getInventory().setChestplate(null);
+		getServer().getPlayer(player).getInventory().setLeggings(null);
+		getServer().getPlayer(player).getInventory().setBoots(null);
 		getServer().getPlayer(player).updateInventory();
 		getServer().getPlayer(player).getInventory().setContents(c.getItems());
 		getServer().getPlayer(player).updateInventory();

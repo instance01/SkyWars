@@ -92,6 +92,7 @@ public class Main extends JavaPlugin implements Listener {
 	String cmd = "";
 	boolean start_announcement = false;
 	boolean winner_announcement = false;
+	boolean remove_default_kit = true;
 	
 	int start_countdown = 5;
 
@@ -115,6 +116,8 @@ public class Main extends JavaPlugin implements Listener {
 	public String join_announcement = "";
 	public String kicked_because_vip_joined = "";
 	public String commands_ingame = "";
+	public String teleporting1 = "";
+	public String teleporting2 = "";
 	
 	// anouncements
 	public String starting = "";
@@ -142,6 +145,7 @@ public class Main extends JavaPlugin implements Listener {
 		getConfig().addDefault("config.start_announcement", false);
 		getConfig().addDefault("config.winner_announcement", false);
 		getConfig().addDefault("config.game_on_join", false);
+		getConfig().addDefault("config.remove_default_kit", true);
 
 		getConfig().addDefault("config.kits.default.name", "default");
 		getConfig().addDefault("config.kits.default.items", "276#1");
@@ -150,8 +154,7 @@ public class Main extends JavaPlugin implements Listener {
 		getConfig().addDefault("config.kits.default.requires_permission", false);
 		getConfig().addDefault("config.kits.default.money_amount", 100);
 		getConfig().addDefault("config.kits.default.permission_node", "skywars.kits.default");
-		
-		
+
 		getConfig().addDefault("strings.saved.arena", "&aSuccessfully saved arena.");
 		getConfig().addDefault("strings.saved.lobby", "&aSuccessfully saved lobby.");
 		getConfig().addDefault("strings.saved.setup", "&6Successfully saved spawn. Now setting up, might &2lag&6 a little bit.");
@@ -174,6 +177,9 @@ public class Main extends JavaPlugin implements Listener {
 		getConfig().addDefault("strings.kicked_because_vip_joined", "&6You just kicked because a VIP joined the game!");
 		getConfig().addDefault("strings.commands_ingame", "§cPlease use §6/sw leave §cto leave this minigame.");
 		getConfig().addDefault("strings.nokitperm", "§cYou don't have permission for this kit.");
+		getConfig().addDefault("strings.teleporting1", "Teleporting to arena in ");
+		getConfig().addDefault("strings.teleporting2", " seconds.");
+		
 		
 		getConfig().addDefault("config.signs.sign_join.line0", "&6SkyWars");
 		getConfig().addDefault("config.signs.sign_join.line1", "[Join]");
@@ -187,6 +193,10 @@ public class Main extends JavaPlugin implements Listener {
 		getConfig().addDefault("config.signs.sign_restart.line1", "[Restart]");
 		getConfig().addDefault("config.signs.sign_restart.line2", "<arena>");
 		getConfig().addDefault("config.signs.sign_restart.line3", "<count>/<maxcount>");
+		getConfig().addDefault("config.signs.sign_full.line0", "&6SkyWars");
+		getConfig().addDefault("config.signs.sign_full.line1", "[Full]");
+		getConfig().addDefault("config.signs.sign_full.line2", "<arena>");
+		getConfig().addDefault("config.signs.sign_full.line3", "<count>/<maxcount>");
 
 		
 		getConfig().options().copyDefaults(true);
@@ -242,6 +252,7 @@ public class Main extends JavaPlugin implements Listener {
 		start_countdown = getConfig().getInt("config.start_countdown");
 		start_announcement = getConfig().getBoolean("config.start_announcement");
 		winner_announcement = getConfig().getBoolean("config.winner_announcement");
+		remove_default_kit = getConfig().getBoolean("config.remove_default_kit");
 		
 		saved_arena = getConfig().getString("strings.saved.arena").replaceAll("&", "§");
 		saved_lobby = getConfig().getString("strings.saved.lobby").replaceAll("&", "§");
@@ -265,6 +276,8 @@ public class Main extends JavaPlugin implements Listener {
 		join_announcement = getConfig().getString("strings.join_announcement").replaceAll("&", "§");
 		kicked_because_vip_joined = getConfig().getString("strings.kicked_because_vip_joined").replaceAll("&", "§");
 		commands_ingame = getConfig().getString("strings.commands_ingame").replaceAll("&", "§");
+		teleporting1 = getConfig().getString("strings.teleporting1");
+		teleporting2 = getConfig().getString("strings.teleporting2");
 	}
 
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
@@ -1071,6 +1084,16 @@ public class Main extends JavaPlugin implements Listener {
 				s.setLine(3, getConfig().getString("config.signs.sign_join.line3").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
 				s.update();
 			}
+		}else if(state.equalsIgnoreCase("full")){
+			arenastate.put(arena, "ingame");
+			Sign s = getSignFromArena(arena);
+			if(s != null){
+				s.setLine(0, getConfig().getString("config.signs.sign_full.line0").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				s.setLine(1, getConfig().getString("config.signs.sign_full.line1").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				s.setLine(2, getConfig().getString("config.signs.sign_full.line2").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				s.setLine(3, getConfig().getString("config.signs.sign_full.line3").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
+				s.update();
+			}
 		}else if(state.equalsIgnoreCase("ingame")){
 			arenastate.put(arena, "ingame");
 			Sign s = getSignFromArena(arena);
@@ -1320,6 +1343,14 @@ public class Main extends JavaPlugin implements Listener {
 				}
 				return;
 			}
+			
+			int playercount = 0;
+			for (Player p_ : arenap.keySet()) {
+				if (arenap.get(p_).equalsIgnoreCase(arena)) {
+					playercount++;
+				}
+			}
+			m.updateSign(arena, "full", playercount, m.getArenaMaxPlayers(arena));
 		}
 
 		
@@ -1363,7 +1394,7 @@ public class Main extends JavaPlugin implements Listener {
 						int count = m.lobby_countdown_count.get(arena);
 						for (Player p : m.arenap.keySet()) {
 							if (m.arenap.get(p).equalsIgnoreCase(arena)) {
-								p.sendMessage(ChatColor.GRAY + "Teleporting to arena in " + Integer.toString(count) + " seconds.");
+								p.sendMessage(ChatColor.GRAY + teleporting1 + Integer.toString(count) + teleporting2);
 							}
 						}
 						count--;
@@ -1451,7 +1482,6 @@ public class Main extends JavaPlugin implements Listener {
 		a_round.put(arena, 0);
 		a_n.put(arena, 0);
 		a_currentw.put(arena, 0);
-
 
 		// start countdown timer
 		if(start_announcement){
@@ -1777,7 +1807,13 @@ public class Main extends JavaPlugin implements Listener {
 		
 		int c = 0;
 		for(String ac : aclasses.keySet()){
-			iconm.setOption(c, new ItemStack(Material.SLIME_BALL), ac, m.getConfig().getString("config.kits." + ac + ".lore"));
+			if(remove_default_kit){
+				if(!ac.equalsIgnoreCase("default")){
+					iconm.setOption(c, new ItemStack(Material.SLIME_BALL), ac, m.getConfig().getString("config.kits." + ac + ".lore"));
+				}
+			}else{
+				iconm.setOption(c, new ItemStack(Material.SLIME_BALL), ac, m.getConfig().getString("config.kits." + ac + ".lore"));
+			}
 			c++;
 		}
 		

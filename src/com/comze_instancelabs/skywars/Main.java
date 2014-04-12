@@ -32,12 +32,14 @@ import org.bukkit.block.Chest;
 import org.bukkit.block.Sign;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.block.SignChangeEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
@@ -796,13 +798,15 @@ public class Main extends JavaPlugin implements Listener {
 			//getLogger().info(astarted.get(arena_).toString());
 			if(ingame.get(arena_)){
 				final Player p = event.getPlayer();
-				final Location temp = getSpawn(arena_, pspawn.get(p));
-				if (p.getLocation().getBlockZ() > temp.getBlockZ() + 1 || p.getLocation().getBlockZ() < temp.getBlockZ() - 1 || p.getLocation().getBlockX() > temp.getBlockX() + 1 || p.getLocation().getBlockX() < temp.getBlockX() - 1) {
-					Bukkit.getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
-						public void run() {
-							p.teleport(temp);
-						}
-					}, 5);
+				if(pspawn.containsKey(p)){
+					final Location temp = getSpawn(arena_, pspawn.get(p));
+					if (p.getLocation().getBlockZ() > temp.getBlockZ() + 1 || p.getLocation().getBlockZ() < temp.getBlockZ() - 1 || p.getLocation().getBlockX() > temp.getBlockX() + 1 || p.getLocation().getBlockX() < temp.getBlockX() - 1) {
+						Bukkit.getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
+							public void run() {
+								p.teleport(temp);
+							}
+						}, 5);
+					}
 				}
 			}
 		}
@@ -993,6 +997,16 @@ public class Main extends JavaPlugin implements Listener {
 		}
 	}
 	
+	
+	@EventHandler
+	public void onBlockBreak(BlockBreakEvent event){
+		if(arenap.containsKey(event.getPlayer())){
+			if(!arenastate.get(arenap.get(event.getPlayer())).equalsIgnoreCase("ingame")){
+				event.setCancelled(true);
+			}
+		}
+	}
+	
 	@EventHandler
    	public void onPlayerCommandPreprocessEvent(PlayerCommandPreprocessEvent event) {
 		if(event.getMessage().equalsIgnoreCase("/sair")){
@@ -1012,13 +1026,22 @@ public class Main extends JavaPlugin implements Listener {
     }
 	
 	
-	//TODO check that
+	//TODO check this
 	@EventHandler
 	public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
 		if(event.getEntity() instanceof Player && event.getDamager() instanceof Player){
 			Player damager = (Player) event.getDamager();
 			if(arenap.containsKey(damager) && lost.containsKey(damager)){
 				event.setCancelled(true);
+			}
+		}
+		if(event.getEntity() instanceof Player && event.getDamager() instanceof Arrow){
+			Arrow a = (Arrow) event.getDamager();
+			if(a.getShooter() instanceof Player){
+				Player damager = (Player) a.getShooter();
+				if(arenap.containsKey(damager) && lost.containsKey(damager)){
+					event.setCancelled(true);
+				}
 			}
 		}
 	}
@@ -1333,8 +1356,10 @@ public class Main extends JavaPlugin implements Listener {
 				Player p___ = null;
 				for (Player p_ : arenap.keySet()) {
 					if (arenap.get(p_).equalsIgnoreCase(arena)) {
-						p___ = p_;
-						break;
+						if(!p_.hasPermission("skywars.vip")){
+							p___ = p_;
+							break;
+						}
 					}
 				}
 				if(p___ != null){
@@ -1810,11 +1835,12 @@ public class Main extends JavaPlugin implements Listener {
 			if(remove_default_kit){
 				if(!ac.equalsIgnoreCase("default")){
 					iconm.setOption(c, new ItemStack(Material.SLIME_BALL), ac, m.getConfig().getString("config.kits." + ac + ".lore"));
+					c++;
 				}
 			}else{
 				iconm.setOption(c, new ItemStack(Material.SLIME_BALL), ac, m.getConfig().getString("config.kits." + ac + ".lore"));
+				c++;
 			}
-			c++;
 		}
 		
 		iconm.open(Bukkit.getPlayerExact(p));

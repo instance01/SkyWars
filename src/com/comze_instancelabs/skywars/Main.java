@@ -707,7 +707,7 @@ public class Main extends JavaPlugin implements Listener {
 				getLogger().warning("You forgot to set a sign for arena " + arena + "! This might lead to errors.");
 			}
 
-			leaveArena(event.getPlayer(), true, true);
+			leaveArena(event.getPlayer(), true, false);
 			left_players.add(event.getPlayer().getName());
 		}
 	}
@@ -1438,9 +1438,11 @@ public class Main extends JavaPlugin implements Listener {
 							m.lobby_countdown_count.put(arena, lobby_c);
 						}
 						int count = m.lobby_countdown_count.get(arena);
-						for (Player p : m.arenap.keySet()) {
-							if (m.arenap.get(p).equalsIgnoreCase(arena)) {
-								p.sendMessage(ChatColor.GRAY + teleporting1 + Integer.toString(count) + teleporting2);
+						if(count == 30 || count == 15 || count < 6){
+							for (Player p : m.arenap.keySet()) {
+								if (m.arenap.get(p).equalsIgnoreCase(arena)) {
+									p.sendMessage(ChatColor.GRAY + teleporting1 + Integer.toString(count) + teleporting2);
+								}
 							}
 						}
 						count--;

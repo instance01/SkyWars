@@ -1,6 +1,6 @@
 name: SkyWars
 main: com.comze_instancelabs.skywars.Main
-version: 1.1
+version: 1.0
 author: instancelabs
 softdepend: [Vault]
 commands:

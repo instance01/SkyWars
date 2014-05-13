@@ -64,6 +64,9 @@ import org.bukkit.scoreboard.ScoreboardManager;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
 
+import com.comze_instancelabs.skywars.util.Metrics;
+import com.comze_instancelabs.skywars.util.Updater;
+
 
 public class Main extends JavaPlugin implements Listener {
 	public static Economy econ = null;
@@ -143,7 +146,7 @@ public class Main extends JavaPlugin implements Listener {
 		getConfig().addDefault("config.itemid", 264); // diamond
 		getConfig().addDefault("config.itemamount", 1);
 		getConfig().addDefault("config.use_command_reward", false);
-		getConfig().addDefault("config.command_reward", "pex user <player> group set ColorPro");
+		getConfig().addDefault("config.command_reward", "pex user <player> group set SkyPro");
 		getConfig().addDefault("config.start_announcement", false);
 		getConfig().addDefault("config.winner_announcement", false);
 		getConfig().addDefault("config.game_on_join", false);
@@ -175,8 +178,8 @@ public class Main extends JavaPlugin implements Listener {
 		getConfig().addDefault("strings.starting_announcement", "&aStarting a new SkyWars Game in &6");
 		getConfig().addDefault("strings.started_announcement", "&aA new SkyWars Round has started!");
 		getConfig().addDefault("strings.winner_announcement", "&6<player> &awon the game on arena &6<arena>!");
-		getConfig().addDefault("strings.join_announcement", "&6<player> joined the game (&a<count>)!");
-		getConfig().addDefault("strings.kicked_because_vip_joined", "&6You just kicked because a VIP joined the game!");
+		getConfig().addDefault("strings.join_announcement", "&6<player> joined the game (&a<count>&6)!");
+		getConfig().addDefault("strings.kicked_because_vip_joined", "&6You were just kicked because a VIP joined the game!");
 		getConfig().addDefault("strings.commands_ingame", "§cPlease use §6/sw leave §cto leave this minigame.");
 		getConfig().addDefault("strings.nokitperm", "§cYou don't have permission for this kit.");
 		getConfig().addDefault("strings.teleporting1", "Teleporting to arena in ");
@@ -184,22 +187,22 @@ public class Main extends JavaPlugin implements Listener {
 		
 		
 		getConfig().addDefault("config.signs.sign_join.line0", "&6SkyWars");
-		getConfig().addDefault("config.signs.sign_join.line1", "[Join]");
+		getConfig().addDefault("config.signs.sign_join.line1", "&4[Join]");
 		getConfig().addDefault("config.signs.sign_join.line2", "<arena>");
 		getConfig().addDefault("config.signs.sign_join.line3", "<count>/<maxcount>");
 		getConfig().addDefault("config.signs.sign_ingame.line0", "&6SkyWars");
-		getConfig().addDefault("config.signs.sign_ingame.line1", "[Ingame]");
+		getConfig().addDefault("config.signs.sign_ingame.line1", "&4[Ingame]");
 		getConfig().addDefault("config.signs.sign_ingame.line2", "<arena>");
 		getConfig().addDefault("config.signs.sign_ingame.line3", "<count>/<maxcount>");
 		getConfig().addDefault("config.signs.sign_restart.line0", "&6SkyWars");
-		getConfig().addDefault("config.signs.sign_restart.line1", "[Restart]");
+		getConfig().addDefault("config.signs.sign_restart.line1", "&6[Restart]");
 		getConfig().addDefault("config.signs.sign_restart.line2", "<arena>");
 		getConfig().addDefault("config.signs.sign_restart.line3", "<count>/<maxcount>");
-		getConfig().addDefault("config.signs.sign_full.line0", "&6SkyWars");
+		/*getConfig().addDefault("config.signs.sign_full.line0", "&6SkyWars");
 		getConfig().addDefault("config.signs.sign_full.line1", "[Full]");
 		getConfig().addDefault("config.signs.sign_full.line2", "<arena>");
 		getConfig().addDefault("config.signs.sign_full.line3", "<count>/<maxcount>");
-
+		 */
 		
 		getConfig().options().copyDefaults(true);
 		if(getConfig().isSet("config.min_players")){
@@ -230,10 +233,21 @@ public class Main extends JavaPlugin implements Listener {
 		
 		// This might fuck things up, it's just for matheus because he has these ideas sometimes LOL
 		// TODO remove that some time
-		for (String arena : getConfig().getKeys(false)) {
+		/*for (String arena : getConfig().getKeys(false)) {
 			if (!arena.equalsIgnoreCase("mainlobby") && !arena.equalsIgnoreCase("strings") && !arena.equalsIgnoreCase("config")) {
 				m.reset(arena);
 			}
+		}*/
+		
+		
+		try {
+			Metrics metrics = new Metrics(this);
+			metrics.start();
+		} catch (IOException e) {
+		}
+
+		if (getConfig().getBoolean("config.auto_updating")) {
+			Updater updater = new Updater(this, 78288, this.getFile(), Updater.UpdateType.DEFAULT, false);
 		}
 		
 	}
@@ -448,12 +462,12 @@ public class Main extends JavaPlugin implements Listener {
 						this.saveConfig();
 						sender.sendMessage(saved_mainlobby);
 					}
-				} else if (action.equalsIgnoreCase("spawnsetup") || action.equalsIgnoreCase("getbeacon")) {
+				} else if (action.equalsIgnoreCase("spawnsetup")) {
 					if (sender.hasPermission("skywars.setup")) {
 						if(args.length > 1){
 							String arena = args[1];
 							Player p = (Player) sender;
-							ItemStack beacon = new ItemStack(Material.BEACON);
+							ItemStack beacon = new ItemStack(Material.WOOL);
 							ItemMeta im = beacon.getItemMeta();
 							im.setDisplayName(arena);
 							beacon.setItemMeta(im);
@@ -970,7 +984,7 @@ public class Main extends JavaPlugin implements Listener {
 	
 	@EventHandler
 	public void onBlockPlace(BlockPlaceEvent event){
-		if(event.getBlock().getType() == Material.BEACON){
+		if(event.getBlock().getType() == Material.WOOL){
 			Player p = event.getPlayer();
 			String arenaname = event.getItemInHand().getItemMeta().getDisplayName();
 			
@@ -1022,7 +1036,7 @@ public class Main extends JavaPlugin implements Listener {
 	
 	@EventHandler
    	public void onPlayerCommandPreprocessEvent(PlayerCommandPreprocessEvent event) {
-		if(event.getMessage().equalsIgnoreCase("/sair")){
+		if(event.getMessage().equalsIgnoreCase("/leave")){
    			if(arenap.containsKey(event.getPlayer())){
    				leaveArena(event.getPlayer(), true, false);
    				event.setCancelled(true);
@@ -1071,7 +1085,6 @@ public class Main extends JavaPlugin implements Listener {
 		return s_;
 	}
 	
-	//TODO updatesign function
 	public HashMap<String, String> arenastate = new HashMap<String, String>();
 
 	public void updateSign(String arena, String state, int count, int maxcount, SignChangeEvent event){
@@ -1120,7 +1133,7 @@ public class Main extends JavaPlugin implements Listener {
 				s.setLine(3, getConfig().getString("config.signs.sign_join.line3").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
 				s.update();
 			}
-		}else if(state.equalsIgnoreCase("full")){
+		}/*else if(state.equalsIgnoreCase("full")){
 			arenastate.put(arena, "ingame");
 			Sign s = getSignFromArena(arena);
 			if(s != null){
@@ -1130,7 +1143,7 @@ public class Main extends JavaPlugin implements Listener {
 				s.setLine(3, getConfig().getString("config.signs.sign_full.line3").replaceAll("&", "§").replace("<count>", Integer.toString(count)).replace("<maxcount>", Integer.toString(maxcount)).replace("<arena>", arena));
 				s.update();
 			}
-		}else if(state.equalsIgnoreCase("ingame")){
+		}*/else if(state.equalsIgnoreCase("ingame")){
 			arenastate.put(arena, "ingame");
 			Sign s = getSignFromArena(arena);
 			if(s != null){
@@ -2232,65 +2245,69 @@ public class Main extends JavaPlugin implements Listener {
 	public HashMap<String, Integer> currentscore = new HashMap<String, Integer>();
 
 	
-	public void updateScoreboard(String arena) {
+	public void updateScoreboard(final String arena) {
 
-		for (Player pl : arenap.keySet()) {
-			if(!arenap.get(pl).equalsIgnoreCase(arena)){
-				return;
-			}
-			Player p = pl;
-			if (board == null) {
-				board = Bukkit.getScoreboardManager().getNewScoreboard();
-			}
-			if (objective == null) {
-				objective = board.registerNewObjective("test", "dummy");
-			}
-
-			objective.setDisplaySlot(DisplaySlot.SIDEBAR);
-
-			objective.setDisplayName("[" + arenap.get(p) + "]");
-
-			for (Player pl_ : arenap.keySet()) {
-				Player p_ = pl_;
-				if (!lost.containsKey(pl_)) {
-					int score = 0;
-					if (currentscore.containsKey(pl_.getName())) {
-						int oldscore = currentscore.get(pl_.getName());
-						if (score > oldscore) {
-							currentscore.put(pl_.getName(), score);
-						} else {
-							score = oldscore;
-						}
-					} else {
-						currentscore.put(pl_.getName(), score);
+		Bukkit.getScheduler().runTask(this, new Runnable(){
+			public void run(){
+				for (Player pl : arenap.keySet()) {
+					if(!arenap.get(pl).equalsIgnoreCase(arena)){
+						return;
 					}
-					try{
-						if(p_.getName().length() < 15){
-							objective.getScore(Bukkit.getOfflinePlayer("§a" + p_.getName())).setScore(score);
-						}else{
-							objective.getScore(Bukkit.getOfflinePlayer("§a" + p_.getName().substring(0, p_.getName().length() - 3))).setScore(score);
-						}
-					}catch(Exception e){
+					Player p = pl;
+					if (board == null) {
+						board = Bukkit.getScoreboardManager().getNewScoreboard();
 					}
-				} else if (lost.containsKey(pl_)){
-					if (currentscore.containsKey(pl_.getName())) {
-						int score = currentscore.get(pl_.getName());
-						try{
-							if(p_.getName().length() < 15){
-								board.resetScores(Bukkit.getOfflinePlayer("§a" + p_.getName()));
-								objective.getScore(Bukkit.getOfflinePlayer("§c" + p_.getName())).setScore(score);
-							}else{
-								board.resetScores(Bukkit.getOfflinePlayer("§a" + p_.getName().substring(0, p_.getName().length() - 3)));
-								objective.getScore(Bukkit.getOfflinePlayer("§c" + p_.getName().substring(0, p_.getName().length() - 3))).setScore(score);
+					if (objective == null) {
+						objective = board.registerNewObjective("test", "dummy");
+					}
+
+					objective.setDisplaySlot(DisplaySlot.SIDEBAR);
+
+					objective.setDisplayName("[" + arenap.get(p) + "]");
+
+					for (Player pl_ : arenap.keySet()) {
+						Player p_ = pl_;
+						if (!lost.containsKey(pl_)) {
+							int score = 0;
+							if (currentscore.containsKey(pl_.getName())) {
+								int oldscore = currentscore.get(pl_.getName());
+								if (score > oldscore) {
+									currentscore.put(pl_.getName(), score);
+								} else {
+									score = oldscore;
+								}
+							} else {
+								currentscore.put(pl_.getName(), score);
 							}
-						}catch(Exception e){
+							try{
+								if(p_.getName().length() < 15){
+									objective.getScore(Bukkit.getOfflinePlayer("§a" + p_.getName())).setScore(score);
+								}else{
+									objective.getScore(Bukkit.getOfflinePlayer("§a" + p_.getName().substring(0, p_.getName().length() - 3))).setScore(score);
+								}
+							}catch(Exception e){
+							}
+						} else if (lost.containsKey(pl_)){
+							if (currentscore.containsKey(pl_.getName())) {
+								int score = currentscore.get(pl_.getName());
+								try{
+									if(p_.getName().length() < 15){
+										board.resetScores(Bukkit.getOfflinePlayer("§a" + p_.getName()));
+										objective.getScore(Bukkit.getOfflinePlayer("§c" + p_.getName())).setScore(score);
+									}else{
+										board.resetScores(Bukkit.getOfflinePlayer("§a" + p_.getName().substring(0, p_.getName().length() - 3)));
+										objective.getScore(Bukkit.getOfflinePlayer("§c" + p_.getName().substring(0, p_.getName().length() - 3))).setScore(score);
+									}
+								}catch(Exception e){
+								}
+							}
 						}
 					}
+
+					p.setScoreboard(board);
 				}
 			}
-
-			p.setScoreboard(board);
-		}
+		});
 	}
 
 	public void removeScoreboard(String arena, Player p) {

@@ -113,6 +113,7 @@ public class Main extends JavaPlugin implements Listener {
 	public String you_fell = "";
 	public String arena_invalid_component = "";
 	public String you_won = "";
+	public String you_died = "";
 	public String starting_in = "";
 	public String starting_in2 = "";
 	public String arena_full = "";
@@ -123,6 +124,8 @@ public class Main extends JavaPlugin implements Listener {
 	public String commands_ingame = "";
 	public String teleporting1 = "";
 	public String teleporting2 = "";
+	public String player_fell = "";
+	public String player_killed = "";
 	
 	// anouncements
 	public String starting = "";
@@ -184,6 +187,9 @@ public class Main extends JavaPlugin implements Listener {
 		getConfig().addDefault("strings.nokitperm", "§cYou don't have permission for this kit.");
 		getConfig().addDefault("strings.teleporting1", "Teleporting to arena in ");
 		getConfig().addDefault("strings.teleporting2", " seconds.");
+		getConfig().addDefault("strings.you_died", "&cYou died.");
+		getConfig().addDefault("strings.player_fell", "&c<player> fell into the void. There are <count> alive.");
+		getConfig().addDefault("strings.player_killed", "&c<player> was killed by <killer>. There are <count> alive.");
 		
 		
 		getConfig().addDefault("config.signs.sign_join.line0", "&6SkyWars");
@@ -291,6 +297,7 @@ public class Main extends JavaPlugin implements Listener {
 		you_fell = getConfig().getString("strings.you_fell").replaceAll("&", "§");
 		arena_invalid_component = getConfig().getString("strings.arena_invalid_component").replace("&", "§");
 		you_won = getConfig().getString("strings.you_won").replaceAll("&", "§");
+		you_died = getConfig().getString("strings.you_died").replaceAll("&", "§");
 		starting_in = getConfig().getString("strings.starting_in").replaceAll("&", "§");
 		starting_in2 = getConfig().getString("strings.starting_in2").replaceAll("&", "§");
 		arena_full = getConfig().getString("strings.arena_full").replaceAll("&", "§");
@@ -301,8 +308,10 @@ public class Main extends JavaPlugin implements Listener {
 		join_announcement = getConfig().getString("strings.join_announcement").replaceAll("&", "§");
 		kicked_because_vip_joined = getConfig().getString("strings.kicked_because_vip_joined").replaceAll("&", "§");
 		commands_ingame = getConfig().getString("strings.commands_ingame").replaceAll("&", "§");
-		teleporting1 = getConfig().getString("strings.teleporting1");
-		teleporting2 = getConfig().getString("strings.teleporting2");
+		teleporting1 = getConfig().getString("strings.teleporting1").replaceAll("&", "§");
+		teleporting2 = getConfig().getString("strings.teleporting2").replaceAll("&", "§");
+		player_fell = getConfig().getString("strings.player_fell").replaceAll("&", "§");
+		player_killed = getConfig().getString("strings.player_killed").replaceAll("&", "§");
 	}
 
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
@@ -782,6 +791,11 @@ public class Main extends JavaPlugin implements Listener {
 			lost.put(p, arenap.get(p));
 			final Player p__ = p;
 			final String arena = arenap.get(p);
+			String killername = "";
+			if(event.getEntity().getKiller() != null){
+				killername = event.getEntity().getKiller().getName();
+			}
+			final String kname = killername;
 			Bukkit.getScheduler().runTaskLater(this, new Runnable() {
 				public void run() {
 					try {
@@ -795,6 +809,19 @@ public class Main extends JavaPlugin implements Listener {
 						p__.getInventory().setLeggings(null);
 						p__.getInventory().setBoots(null);
 						p__.updateInventory();
+						if(!sent_freaking_message.contains(p__)){
+							p__.sendMessage(you_died);
+							sent_freaking_message.add(p__);
+							int playercount = 0;
+							for (Player p_ : arenap.keySet()) {
+								if (arenap.get(p_).equalsIgnoreCase(arena)) {
+									playercount++;
+								}
+							}
+							String count = Integer.toString(playercount - 1) + "/" + Integer.toString(m.getArenaMaxPlayers(arena));
+							Bukkit.getServer().broadcastMessage(player_killed.replaceAll("<player>", p__.getName()).replaceAll("<killer>", kname).replaceAll("<count>", count));
+							p__.getWorld().spawnEntity(p__.getLocation(), EntityType.LIGHTNING);
+						}
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -817,6 +844,8 @@ public class Main extends JavaPlugin implements Listener {
 			}
 		}
 	}
+	
+	public ArrayList<Player> sent_freaking_message = new ArrayList<Player>();
 	
 	@EventHandler
 	public void onPlayerMove(PlayerMoveEvent event) {
@@ -891,6 +920,19 @@ public class Main extends JavaPlugin implements Listener {
 							p__.teleport(new Location(l.getWorld(), l.getBlockX(), l.getBlockY() + 30, l.getBlockZ()));
 							p__.setAllowFlight(true);
 							p__.setFlying(true);
+							if(!sent_freaking_message.contains(p__)){
+								p__.sendMessage(ChatColor.RED + you_died);
+								sent_freaking_message.add(p__);
+								int playercount = 0;
+								for (Player p_ : arenap.keySet()) {
+									if (arenap.get(p_).equalsIgnoreCase(arena)) {
+										playercount++;
+									}
+								}
+								String count = Integer.toString(playercount - 1) + "/" + Integer.toString(m.getArenaMaxPlayers(arena));
+								Bukkit.getServer().broadcastMessage(player_fell.replaceAll("<player>", p__.getName()).replaceAll("<count>", count));
+								p__.getWorld().spawnEntity(p__.getLocation(), EntityType.LIGHTNING);
+							}
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
@@ -1333,6 +1375,7 @@ public class Main extends JavaPlugin implements Listener {
 			}
 
 			if (winner.containsKey(p)) {
+				System.out.println(p.getName());
 				if (economy) {
 					EconomyResponse r = econ.depositPlayer(p.getName(), getConfig().getDouble("config.money_reward_per_game"));
 					if (!r.transactionSuccess()) {
@@ -1467,7 +1510,11 @@ public class Main extends JavaPlugin implements Listener {
 								final Player p__ = p_;
 								if (arenap.get(p_).equalsIgnoreCase(arena)) {
 									final Location l_ = getSpawnForPlayer(p__, arena).add(0D, 5D, 0D);
-									l_.getBlock().setType(Material.GLASS);
+									Bukkit.getScheduler().runTask(m, new Runnable(){
+										public void run(){
+											l_.getBlock().setType(Material.GLASS);
+										}
+									});
 									Bukkit.getScheduler().runTaskLater(m, new Runnable() {
 										public void run() {
 											p__.teleport(l_.add(0.5D, 1D, 0.5D));
@@ -1652,6 +1699,7 @@ public class Main extends JavaPlugin implements Listener {
 	
 
 	public void stop(BukkitTask t, final String arena) {
+		sent_freaking_message.clear();
 		ingame.put(arena, false);
 		try {
 			t.cancel();
@@ -1674,8 +1722,6 @@ public class Main extends JavaPlugin implements Listener {
 				} catch (Exception e) {
 				}
 
-				determineWinners(arena);
-				
 				ArrayList<Player> torem = new ArrayList<Player>();
 				determineWinners(arena);
 				for (Player p : arenap.keySet()) {
